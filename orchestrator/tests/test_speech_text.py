@@ -2,7 +2,7 @@ import asyncio
 
 import pytest
 
-from speech_text import normalize, screen_text
+from speech_text import language, normalize, screen_text
 
 CASES = [
     # money
@@ -33,12 +33,58 @@ CASES = [
     ("Ada kursi, meja, dll.", "Ada kursi, meja, dan lain-lain."),
     ("Selamat datang di ITS", "Selamat datang di i te es"),
     ("Pameran UMKM", "Pameran u em ka em"),
-    ("Saya RAISA", "Saya RAISA"),
-    ("Tim IRIS dan robot NABBIT di ITS", "Tim IRIS dan robot NABBIT di i te es"),
+    ("Saya RAISA", "Saya Raisa"),
+    ("Tim IRIS dan robot NABBIT di ITS", "Tim Iris dan robot Nabbit di i te es"),
     ("Fakultas FTEIC", "Fakultas ef te e i ce"),
     # emoji
     ("Halo 😊 selamat datang", "Halo  selamat datang"),
+    # fixed readings, the same in both languages
+    ("Bayar pakai QRIS ya", "Bayar pakai kyuris ya"),
+    ("Kirim file PDF ke email saya", "Kirim file pidief ke email saya"),
+    ("Colok USB di sini", "Colok yu es bi di sini"),
+    ("Tonton di ITS TV", "Tonton di i te es ti vi"),
+    ("Ruang VIP, GPU, API, QR, NFC, ID, IT dan GB", "Ruang vi ai pi, ji pi yu, ei pi ai, kyu ar, en ef si, ai di, ai ti dan ji bi"),
+    ("Pemakaian 450 kWh", "Pemakaian empat ratus lima puluh kilowatt hour"),
+    ("Prosesor 3,5 GHz", "Prosesor tiga koma lima gigahertz"),
+    # units with symbols
+    ("Suhu hari ini 23°C", "Suhu hari ini dua puluh tiga derajat Celsius"),
+    ("Suhu tubuh 36,5 °C", "Suhu tubuh tiga puluh enam koma lima derajat Celsius"),
+    ("Luasnya 150 m² saja", "Luasnya seratus lima puluh meter persegi saja"),
+    ("Kecepatan 40 km/jam", "Kecepatan empat puluh kilometer per jam"),
+    # acronyms follow the sentence language; capitals that are words are said as words
+    ("Kabel HDMI di meja", "Kabel ha de em i di meja"),
+    ("Daftar di BRIN, SIM, dan UNAIR", "Daftar di Brin, Sim, dan Unair"),
+    ("Ketua HIMATEKTRO dari BANDUNG", "Ketua Himatektro dari Bandung"),
+    ("Kak ANDI dan DEWI ke MEDAN", "Kak Andi dan Dewi ke Medan"),
+    ("Pukul 10.00 WITA dan 11.00 WIT", "Pukul sepuluh Wita dan sebelas we i te"),
+    ("Mulai pukul 09.00 WIB.", "Mulai pukul sembilan we i be."),
+    ("Bayar BPJS dan NPWP", "Bayar be pe je es dan en pe we pe"),
+    # English sentences
+    ("Please plug the HDMI cable in.", "Please plug the H D M I cable in."),
+    ("You can pay via QRIS or scan the QR code.", "You can pay via kyuris or scan the kyu ar code."),
+    ("The lab is on floor 3 and it is 23°C.", "The lab is on floor three and it is twenty-three degrees Celsius."),
+    ("Your total is Rp 45,000.", "Your total is forty-five thousand rupiah."),
+    ("The room is 150 m² and 1 km away.", "The room is one hundred and fifty square meters and one kilometer away."),
+    ("It is 25% off until 10:30.", "It is twenty-five percent off until ten thirty."),
+    ("Welcome to ITS, I am RAISA.", "Welcome to I T S, I am Raisa."),
+    ("We open at 9:05 for 2.5 km runs.", "We open at nine oh five for two point five kilometers runs."),
 ]
+
+
+@pytest.mark.parametrize("text,lang", [
+    ("Selamat datang di lobi.", "id"),
+    ("Kamu bisa download aplikasinya, lalu login pakai email kampus ya.", "id"),
+    ("Maaf, sistem check-in otomatis sedang maintenance.", "id"),
+    ("Please follow me to the meeting room.", "en"),
+    ("Thank you.", "en"),
+    ("Halo!", "id"),
+])
+def test_language(text, lang):
+    assert language(text) == lang
+
+
+def test_lowercase_it_and_id_stay_words():
+    assert normalize("It is your id card.") == "It is your id card."
 
 
 @pytest.mark.parametrize("written,spoken", CASES)

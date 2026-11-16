@@ -34,6 +34,12 @@ TRAPS = [
     "Robot ini juara ke-2 lomba tahun 2025 dengan nilai 87,5.",
     "Rapat jam 14:30, sisa anggaran Rp 1,5 juta.",
     "Saya RAISA, robot pelayan dari Pusat Robotika ITS.",
+    "Bayar pakai QRIS, struknya dikirim sebagai PDF, dan kabel USB ada di laci.",
+    "Suhu ruangan 23°C, konsumsi daya 14,2 kWh, prosesor 4,2 GHz dengan RAM 32 GB.",
+    "Tonton siarannya di ITS TV, ruang VIP ada di lantai 2 dekat tim IT.",
+    "Kak ANDI dari BANDUNG dan tim HIMATEKTRO sudah tiba pukul 10.00 WITA.",
+    "Please connect the HDMI cable, the room is 23°C and the fee is Rp 45,000.",
+    "Your GPU server and API are ready, scan the QR code at 10:30.",
 ]
 
 
