@@ -138,3 +138,34 @@ def test_spoken_text_sends_each_word_as_its_audio_plays():
     run(run_test(spoken, frames_to_send=frames, expected_down_frames=None))
     # "dua" (0.35 s) goes once 0.3 s has played (0.1 s lead); "tiga." (0.55 s) at the stop; "dong." is cut.
     assert sent == [("Satu", 0.1), ("dua", 0.3), ("tiga.", 0.3), ("Lagi", 0.1)]
+
+
+def test_agent_vocabulary_reaches_the_asr_server_as_hotwords():
+    from aiohttp import web
+
+    from asr_stt import WhisperServerSTTService
+
+    seen = []
+
+    async def transcribe(request):
+        seen.append(request.query.get("hotwords"))
+        return web.json_response({"text": "Halo"})
+
+    async def go():
+        app = web.Application()
+        app.router.add_post("/v1/transcribe", transcribe)
+        runner = web.AppRunner(app)
+        await runner.setup()
+        site = web.TCPSite(runner, "127.0.0.1", 0)
+        await site.start()
+        port = site._server.sockets[0].getsockname()[1]
+        try:
+            for vocabulary in (["RAISA", "Teaching Factory"], []):
+                stt = WhisperServerSTTService(base_url=f"http://127.0.0.1:{port}", vocabulary=vocabulary)
+                [f async for f in stt.run_stt(b"RIFF")]
+                await stt._session.close()
+        finally:
+            await runner.cleanup()
+
+    run(go())
+    assert seen == ["RAISA, Teaching Factory", None]  # none sent: the server uses its default list

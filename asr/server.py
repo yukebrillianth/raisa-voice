@@ -23,7 +23,7 @@ from starlette.concurrency import run_in_threadpool
 LANGUAGES = ("id", "en", "ms", "jw")
 # Words Whisper does not know. Without them "What is Teaching Factory ITS?" came out as
 # "Apa yang mengajar factory ITS?"; they also steer the language guess.
-# shortcut: fixed list; pass the agent's transcription.customVocabulary in setup when venues differ.
+# Default when the session sends none; the gateway sends the agent's transcription.customVocabulary.
 HOTWORDS = "RAISA, ITS, Teaching Factory, Pusat Robotika, FTEIC, NABBIT, IRIS, MAGE, BIMA, lobi, ruang rapat, lab robotika"
 # Debug only: keep every request's audio here to study misheard turns. It stores visitors'
 # voices, so it stays unset in normal use.
@@ -53,10 +53,10 @@ def keep(segment) -> bool:
     return segment.compression_ratio <= COMPRESSION_RATIO and normalize(segment.text) not in HALLUCINATIONS
 
 
-def transcribe(audio) -> str:
+def transcribe(audio, hotwords: str = HOTWORDS) -> str:
     # Threshold 0.35, not the default 0.5: at 0.5 one-word turns ("Halo.", "Ya.", "Oke.") were
     # dropped as non-speech, while silence, noise and breath stay empty down to 0.2.
-    options = dict(beam_size=1, condition_on_previous_text=False, hotwords=HOTWORDS,
+    options = dict(beam_size=1, condition_on_previous_text=False, hotwords=hotwords,
                    vad_filter=True, vad_parameters={"threshold": 0.35})
     segments, info = model.transcribe(audio, **options)
     if info.language not in LANGUAGES:  # segments are lazy, so nothing was decoded yet
@@ -97,4 +97,5 @@ async def transcribe_endpoint(request: Request):
         path = f"{DEBUG_DIR}/{time.strftime('%H%M%S')}_{time.time_ns() % 1000000}.wav"
         open(path, "wb").write(body)
         print(f"saved {path}", flush=True)
-    return {"text": await run_in_threadpool(transcribe, audio)}
+    hotwords = request.query_params.get("hotwords") or HOTWORDS
+    return {"text": await run_in_threadpool(transcribe, audio, hotwords)}

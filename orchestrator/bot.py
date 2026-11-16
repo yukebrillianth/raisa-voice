@@ -306,6 +306,9 @@ async def robot_session(websocket: WebSocket):
         if not isinstance(instruction, str):
             raise ValueError("systemInstruction must be a string")
         tools = gemini_to_openai_tools(setup.get("tools", []))
+        vocabulary = setup.get("vocabulary", [])
+        if not (isinstance(vocabulary, list) and all(isinstance(w, str) for w in vocabulary)):
+            raise ValueError("vocabulary must be a list of strings")
     except Exception as e:
         await websocket.send_json({"type": "error", "message": f"invalid setup: {e}"})
         await websocket.close()
@@ -368,7 +371,7 @@ async def robot_session(websocket: WebSocket):
         [
             transport.input(),
             ClientMessages(relay),
-            WhisperServerSTTService(base_url=ASR_URL),
+            WhisperServerSTTService(base_url=ASR_URL, vocabulary=vocabulary),
             user_aggregator,
             llm,
             LLMTextProcessor(

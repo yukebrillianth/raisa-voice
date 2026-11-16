@@ -5,7 +5,8 @@ Text frames carry JSON control messages with a "type" field. The shapes mirror
 the Gemini Live messages the gateway already handles, so its adapter stays thin.
 
 Client to server:
-    {"type": "setup", "token": str, "systemInstruction": str, "tools": [functionDeclaration, ...]}
+    {"type": "setup", "token": str, "systemInstruction": str, "tools": [functionDeclaration, ...],
+     "vocabulary": [str, ...]}  (optional: agent words for speech recognition)
         (a wrong or missing token gets {"type": "error", "message": "unauthorized"} and a close)
     {"type": "text_input", "text": str}
     {"type": "tool_response", "functionResponses": [{"id", "name", "response"}]}

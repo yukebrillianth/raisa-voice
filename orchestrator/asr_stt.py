@@ -17,10 +17,12 @@ from pipecat.utils.time import time_now_iso8601
 
 
 class WhisperServerSTTService(SegmentedSTTService):
-    def __init__(self, *, base_url: str, **kwargs):
+    def __init__(self, *, base_url: str, vocabulary: list[str] | None = None, **kwargs):
         # Model and language are fixed server side.
         super().__init__(settings=STTSettings(model=None, language=None), **kwargs)
         self._url = f"{base_url}/v1/transcribe"
+        # The agent's domain words (agent.yaml transcription.customVocabulary); empty means the server default.
+        self._params = {"hotwords": ", ".join(vocabulary)} if vocabulary else {}
         self._session: aiohttp.ClientSession | None = None
 
     def can_generate_metrics(self) -> bool:
@@ -31,7 +33,7 @@ class WhisperServerSTTService(SegmentedSTTService):
             self._session = aiohttp.ClientSession()
         await self.start_processing_metrics()
         try:
-            async with self._session.post(self._url, data=audio) as response:
+            async with self._session.post(self._url, data=audio, params=self._params) as response:
                 if response.status != 200:
                     yield ErrorFrame(error=f"ASR server returned {response.status}")
                     return
