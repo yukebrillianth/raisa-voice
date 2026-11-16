@@ -10,14 +10,15 @@ Decisions for ambiguous input:
 - "14:30" is always a time.
 - A number that starts with 0 or +62 and has at least 9 digits is a phone number and is
   read digit by digit; other codes are left as numbers.
-- Uppercase words of 2 to 6 letters (ITS, UMKM, WIB, FTEIC) are spelled with the sentence
-  language's letter names; READ_AS_WORD and longer capitals (BANDUNG) are said as a word.
-- FIXED readings (QRIS "kyuris", PDF "pidief", USB/TV/GPU... in English letters, kWh) hold
-  in both languages; other acronyms (ITS, HDMI) follow the sentence language.
+- Acronyms (ITS, USB, HDMI, GPU) go to the voice as written: LoRA v2 was trained on raw
+  acronyms and reads them best that way. READ_AS_WORD and capitals longer than 6 letters
+  (BANDUNG) are said as a Title Case word.
+- FIXED overrides where the raw form reads worse (QRIS "kyuris", units kWh/GHz/kHz) hold in
+  both languages; SPELLED acronyms (WIB, WIT) take the sentence language's letter names.
 - A sentence is English when it has English function words and no Indonesian ones; mixed
   sentences ("silakan login pakai email") stay Indonesian. English sentences use "," for
   thousands and "." for decimals.
-The same rules normalize the training transcripts, so the voice learns what it is fed.
+The LoRA v2 "hybrid" training transcripts are this output with QRIS, WIB and WIT left raw.
 """
 
 import re
@@ -53,11 +54,12 @@ def clock(h: str, m: str) -> str:
 
 LETTERS = dict(zip("ABCDEFGHIJKLMNOPQRSTUVWXYZ",
                    "a be ce de e ef ge ha i je ka el em en o pe ki er es te u fe we eks ye zet".split()))
-# Said the same way in both languages (the voice actor's readings): tech acronyms always take
-# English letter names, even in an Indonesian sentence. Capitals only: "it"/"id" are left alone.
-FIXED = {"QRIS": "kyuris", "PDF": "pidief", "USB": "yu es bi", "TV": "ti vi", "VIP": "vi ai pi",
-         "GPU": "ji pi yu", "API": "ei pi ai", "QR": "kyu ar", "GB": "ji bi", "ID": "ai di",
-         "IT": "ai ti", "NFC": "en ef si", "kWh": "kilowatt hour", "GHz": "gigahertz"}
+# Said the same way in both languages; picked by ear over the raw acronym (LoRA v2 A/B).
+# "colokkan" is read with a k; "ch" gave the Indonesian c 3/3 (other c-words were already right).
+FIXED = {"QRIS": "kyuris", "kWh": "kilowatt hour", "GHz": "gigahertz", "kHz": "kilohertz",
+         "colokkan": "cholokkan", "Colokkan": "Cholokkan"}
+# Spelled with the sentence language's letter names ("we i be"); every other acronym stays raw.
+SPELLED = {"WIB", "WIT"}
 ID_WORDS = set("""yang dan di ke dari ini itu untuk dengan saya anda kamu ada tidak akan bisa sudah
     silakan mohon ya adalah pada atau juga kami kita apa mana berapa sampai pukul jam dalam
     selamat terima kasih tolong sedang belum lagi""".split())
@@ -85,7 +87,7 @@ FRONT = [
 def say_capitals(word: str, letters) -> str:
     if word in READ_AS_WORD or len(word) > 6:
         return word.capitalize()
-    return " ".join(letters(c) for c in word)
+    return " ".join(letters(c) for c in word) if word in SPELLED else word
 
 
 RULES = [

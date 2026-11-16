@@ -1,6 +1,6 @@
 """Renders tricky sentences through the same text transforms as the TTS service, then VoxCPM2.
 
-    docker compose run --rm --no-deps -v ./scripts:/scripts -v ./out:/out orchestrator \
+    docker compose run --rm --no-deps -e PYTHONPATH=/app -v ./scripts:/scripts -v ./out:/out orchestrator \
       python /scripts/render_traps.py
 
 Writes out/traps/NN.wav and out/traps/index.txt (written text -> spoken text), so the

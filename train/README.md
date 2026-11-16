@@ -29,3 +29,24 @@ stop loss), so the checkpoint is picked by measured speech, not loss:
 4. `ab_render.py`: listening files (`out/lora_ab/`).
 
 Step 700 with `raisa-ref.wav` (dataset clip `utt_003`) as prompt and reference was chosen.
+
+## LoRA v2 (served)
+
+600 clips (65.8 min, `dataset-baru/voxcpm2_lora_600_dataset.jsonl`), same 30-clip holdout for
+every run. Scripts in `v2/`, run on the server from `~/yuke/raisa-voice-train/v2/`:
+
+1. `v2_prep.py`: holdout, and two transcript sets: `norm` (everything spelled out) and `hybrid`
+   (numbers, Rp, times, units, Title Case names spelled out; acronyms raw).
+2. `run_v2.sh`: trains both (701 steps, checkpoint every 70), renders holdout 30 + 15 unseen
+   sentences x 3 with `v2_gen.py`, scores them with `v2_ana.py` (Whisper CER/WER, tempo, onset).
+   Hybrid step 280 won: holdout CER 0.045, onsets > 1.3x 16/90, unseen WER 0.069
+   (v1: 0.044, 22/90, 0.096); by ear hybrid read acronyms best.
+3. `run_final.sh cwords`: "colokkan" is read with a k; spelled "cholokkan" (or `{CH OW1}lokkan`)
+   it is right 3/3. Other c-words (cocok, cepat, pencet, cicil, cuci, cabai, kaca) were already right.
+4. `run_final.sh sweep`: cfg 2.0/2.5/3.0 x timesteps 10/16 on the product text, plus TTFAB/RTF
+   through `tts/server.py` (`v2_ttfab.py`). No config was clearly better than the defaults within
+   sample noise, and 16 steps cost +11..14 ms TTFAB and 1.5x RTF, so cfg 2.0 / 10 steps stay.
+
+The served text is `orchestrator/speech_text.py`: the hybrid transcripts exactly, plus overrides
+picked by ear (QRIS "kyuris", WIB/WIT spelled "we i be"/"we i te", "cholokkan"). Weights,
+checkpoints and reports: HF `v2/` (model) and `v600/` (dataset).

@@ -20,9 +20,10 @@ from nanovllm_voxcpm import VoxCPM
 from nanovllm_voxcpm.models.voxcpm2.config import LoRAConfig
 from pydantic import BaseModel
 
-# LoRA trained on the voice actor's 100 clips (dataset-baru, step 700 of 1000), plus one calm
-# clip of the same speaker as prompt and reference. Picked by measured speech, see README.
-LORA_DIR = os.environ.get("VOICE_LORA", "/voices/raisa-lora")
+# LoRA v2: the voice actor's 600 clips with raw-acronym ("hybrid") transcripts, step 280 of 700,
+# plus one calm clip of the same speaker as prompt and reference. Picked by measured speech, see
+# train/README.md. v1 (100 clips) stays in /voices/raisa-lora.
+LORA_DIR = os.environ.get("VOICE_LORA", "/voices/raisa-lora-v2")
 VOICE_WAV = os.environ.get("VOICE_WAV", "/voices/raisa-ref.wav")
 VOICE_TEXT_FILE = os.environ.get("VOICE_TEXT_FILE", "/voices/raisa-ref.txt")
 # Share of the whole GPU this process may use (weights + KV cache); llm and asr share the card.

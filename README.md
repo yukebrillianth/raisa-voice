@@ -17,7 +17,7 @@ robot 24 kHz PCM <──ws──
 | --- | --- | --- |
 | `llm` | llama.cpp server, Gemma 4 12B QAT Q4, 5 slots x ~13k tokens, thinking off | internal 8080 |
 | `asr` | faster-whisper large-v3-turbo, shared by all sessions, Silero VAD filter against hallucinations | internal 8000 |
-| `tts` | VoxCPM2 on nano-vllm-voxcpm (batches concurrent requests), voice from a LoRA (`voices/raisa-lora/`, see `train/`) plus `voices/raisa-ref.wav` | internal 8000 |
+| `tts` | VoxCPM2 on nano-vllm-voxcpm (batches concurrent requests), voice from LoRA v2 (`voices/raisa-lora-v2/`, see `train/`) plus `voices/raisa-ref.wav` | internal 8000 |
 | `orchestrator` | Pipecat pipeline per connection, `ws://<host>:8765/ws`, web simulator at `/` | 8765 |
 
 ## Run
@@ -25,8 +25,8 @@ robot 24 kHz PCM <──ws──
 The voice files are not in git (private HF repo). Fetch them into `voices/` first:
 
 ```bash
-hf download yukebrillianth/raisa-voxcpm2-lora lora_weights.safetensors lora_config.json \
-  --local-dir voices/raisa-lora
+hf download yukebrillianth/raisa-voxcpm2-lora v2/lora_weights.safetensors v2/lora_config.json --local-dir /tmp/raisa
+mkdir -p voices/raisa-lora-v2 && mv /tmp/raisa/v2/* voices/raisa-lora-v2/
 hf download yukebrillianth/raisa-voxcpm2-lora raisa-ref.wav raisa-ref.txt --local-dir voices
 ```
 
@@ -38,8 +38,8 @@ docker compose logs -f orchestrator   # turn, STT, LLM and TTS timings are logge
 
 Needs the Gemma GGUF already in `~/.cache/huggingface/hub` (see `compose.yaml`) and
 about 23 GB of free VRAM (llm 11 GB, tts 8.4 GB, asr 2.8 GB). The voice is
-the LoRA in `voices/raisa-lora/` (trained on the voice actor's 100 clips, `train/README.md`)
-with `voices/raisa-ref.wav` plus its transcript `voices/raisa-ref.txt` as continuation prompt and
+LoRA v2 in `voices/raisa-lora-v2/` (the voice actor's 600 clips, picked by measured speech in
+`train/README.md`; v1 stays in `voices/raisa-lora/`, set `VOICE_LORA` to go back) with `voices/raisa-ref.wav` plus its transcript `voices/raisa-ref.txt` as continuation prompt and
 reference. All checkpoints and the training data are in the private HF repos
 `yukebrillianth/raisa-voxcpm2-lora` and `yukebrillianth/raisa-voice-dataset`.
 
