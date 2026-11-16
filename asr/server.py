@@ -7,7 +7,9 @@ filter instead. Repetition loops and known subtitle-credit phrases are dropped t
 """
 
 import io
+import os
 import re
+import time
 import wave
 
 import numpy as np
@@ -15,9 +17,17 @@ from fastapi import FastAPI, HTTPException, Request
 from faster_whisper import WhisperModel
 from starlette.concurrency import run_in_threadpool
 
-# The robot hears Indonesian and English. A fixed "id" made Whisper translate English speech
-# into Indonesian; free detection calls short Indonesian turns Malay or Javanese.
-LANGUAGES = ("id", "en")
+# Whisper picks the language itself, after its VAD filter. Forcing one (or detecting it
+# separately on the raw clip, silence included) made it translate a visitor's English into
+# Indonesian. Languages outside this set are retried as Indonesian.
+LANGUAGES = ("id", "en", "ms", "jw")
+# Words Whisper does not know. Without them "What is Teaching Factory ITS?" came out as
+# "Apa yang mengajar factory ITS?"; they also steer the language guess.
+# shortcut: fixed list; pass the agent's transcription.customVocabulary in setup when venues differ.
+HOTWORDS = "RAISA, ITS, Teaching Factory, Pusat Robotika, FTEIC, NABBIT, IRIS, MAGE, BIMA, lobi, ruang rapat, lab robotika"
+# Debug only: keep every request's audio here to study misheard turns. It stores visitors'
+# voices, so it stays unset in normal use.
+DEBUG_DIR = os.environ.get("ASR_DEBUG_DIR")
 # Whisper's own threshold for a repetition loop.
 COMPRESSION_RATIO = 2.4
 # Whole-segment matches only: a visitor saying "terima kasih" is real speech.
@@ -43,24 +53,16 @@ def keep(segment) -> bool:
     return segment.compression_ratio <= COMPRESSION_RATIO and normalize(segment.text) not in HALLUCINATIONS
 
 
-def language(audio) -> str:
-    _, _, probs = model.detect_language(audio)
-    probs = dict(probs)
-    chosen = max(LANGUAGES, key=lambda lang: probs.get(lang, 0.0))
-    # Kept to tune the choice on real visitors' voices (accented English is often heard as "id").
-    print(f"lang {chosen} " + " ".join(f"{k}={probs.get(k, 0.0):.2f}" for k in ("id", "en", "ms", "jw")), flush=True)
-    return chosen
-
-
 def transcribe(audio) -> str:
     # Threshold 0.35, not the default 0.5: at 0.5 one-word turns ("Halo.", "Ya.", "Oke.") were
     # dropped as non-speech, while silence, noise and breath stay empty down to 0.2.
-    segments, _ = model.transcribe(
-        audio, language=language(audio), beam_size=1, condition_on_previous_text=False,
-        vad_filter=True, vad_parameters={"threshold": 0.35},
-    )
+    options = dict(beam_size=1, condition_on_previous_text=False, hotwords=HOTWORDS,
+                   vad_filter=True, vad_parameters={"threshold": 0.35})
+    segments, info = model.transcribe(audio, **options)
+    if info.language not in LANGUAGES:  # segments are lazy, so nothing was decoded yet
+        segments, info = model.transcribe(audio, language="id", **options)
     text = " ".join(s.text.strip() for s in segments if keep(s)).strip()
-    print(f"text {text!r}", flush=True)
+    print(f"lang {info.language} {info.language_probability:.2f} text {text!r}", flush=True)
     return text
 
 
@@ -89,5 +91,10 @@ def read_wav(body: bytes) -> np.ndarray:
 
 @app.post("/v1/transcribe")
 async def transcribe_endpoint(request: Request):
-    audio = read_wav(await request.body())
+    body = await request.body()
+    audio = read_wav(body)
+    if DEBUG_DIR:
+        path = f"{DEBUG_DIR}/{time.strftime('%H%M%S')}_{time.time_ns() % 1000000}.wav"
+        open(path, "wb").write(body)
+        print(f"saved {path}", flush=True)
     return {"text": await run_in_threadpool(transcribe, audio)}

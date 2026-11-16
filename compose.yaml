@@ -38,6 +38,9 @@ services:
     restart: unless-stopped
     volumes:
       - ${HOME}/.cache/huggingface:/root/.cache/huggingface
+      - ./out/asr-debug:/debug
+    environment:
+      ASR_DEBUG_DIR: ${ASR_DEBUG_DIR:-}
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:8000/health"]
       interval: 5s
