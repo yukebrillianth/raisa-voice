@@ -15,6 +15,10 @@ Decisions for ambiguous input:
   (BANDUNG) are said as a Title Case word.
 - FIXED overrides where the raw form reads worse (QRIS "kyuris", units kWh/GHz/kHz) hold in
   both languages; SPELLED acronyms (WIB, WIT) take the sentence language's letter names.
+- Academic titles are said in full ("Prof. Dr. Ir. Budi, S.T., M.Sc." -> "Profesor Doktor
+  Insinyur Budi, Sarjana Teknik, Master of Science"). Their dots are dropped so they give no
+  sentence-end pause; a degree after the name keeps one dot when it also ends the sentence.
+  "Dr." is Doktor and "dr." is Dokter. TITLE_DOTS keeps the sentence splitter off them (bot.py).
 - A sentence is English when it has English function words and no Indonesian ones; mixed
   sentences ("silakan login pakai email") stay Indonesian. English sentences use "," for
   thousands and "." for decimals.
@@ -55,16 +59,22 @@ def clock(h: str, m: str) -> str:
 LETTERS = dict(zip("ABCDEFGHIJKLMNOPQRSTUVWXYZ",
                    "a be ce de e ef ge ha i je ka el em en o pe ki er es te u fe we eks ye zet".split()))
 # Said the same way in both languages; picked by ear over the raw acronym (LoRA v2 A/B).
-# "colokkan" is read with a k; "ch" gave the Indonesian c 3/3 (other c-words were already right).
+# colok-words read with a k, where "ch" gives the Indonesian c (phoneme judge, 8 samples): colokkan 3/3,
+# dicolokkan 0/8 -> 7/8, colokan 5/8 -> 7/8. "colok" and "mencolok" are right as written (8/8).
 FIXED = {"QRIS": "kyuris", "kWh": "kilowatt hour", "GHz": "gigahertz", "kHz": "kilohertz",
-         "colokkan": "cholokkan", "Colokkan": "Cholokkan"}
+         "colokkan": "cholokkan", "Colokkan": "Cholokkan", "dicolokkan": "dicholokkan",
+         "Dicolokkan": "Dicholokkan", "colokan": "cholokan", "Colokan": "Cholokan",
+         # One e was dropped 3/8 written plain, 1/8 as "se-enaknya" (Gemini judge). "seekor" and "keenam" lose an
+         # e however they are written (needs training data); "keempat", "keesokan" are right (8/8).
+         "seenaknya": "se-enaknya", "Seenaknya": "Se-enaknya"}
 # Spelled with the sentence language's letter names ("we i be"); every other acronym stays raw.
 SPELLED = {"WIB", "WIT"}
 ID_WORDS = set("""yang dan di ke dari ini itu untuk dengan saya anda kamu ada tidak akan bisa sudah
     silakan mohon ya adalah pada atau juga kami kita apa mana berapa sampai pukul jam dalam
     selamat terima kasih tolong sedang belum lagi""".split())
 EN_WORDS = set("""the is are you your to of and in on at for with please this that it we our my
-    will can be have has what where how thank welcome yes here there from by me i an a""".split())
+    will can be have has what where how thank welcome yes here there from by me i an a
+    sure okay ok sorry certainly alright""".split())
 ABBREVIATIONS = {"dll": "dan lain-lain", "dsb": "dan sebagainya", "dst": "dan seterusnya",
                  "tsb": "tersebut", "yg": "yang", "dgn": "dengan", "utk": "untuk"}
 UNITS = {"km": "kilometer", "m": "meter", "cm": "sentimeter", "mm": "milimeter", "kg": "kilogram",
@@ -73,6 +83,31 @@ UNITS = {"km": "kilometer", "m": "meter", "cm": "sentimeter", "mm": "milimeter",
 READ_AS_WORD = set("""RAISA NABBIT MAGE IRIS BIMA LUNA WITA BRIN SIM RAM LAN SKEM EXPO SPARK UNAIR
     HIMATEKTRO TENDON GARUDA NUSANTARA ANDI ARIF BALI BANDUNG DEWI DINA FARHAN JAKARTA JOGJA KARA
     MALANG MEDAN NORA PUTRA RARA RENDI SATRIA SEMARANG SENO SINTA SURABAYA TASYA YOGI ZARA""".split())
+# Before the name (dot always dropped) and after it (one dot kept at a sentence end).
+TITLES_BEFORE = {"Prof.": "Profesor", "Dr. (HC)": "Doktor Honoris Causa", "Dr.(HC)": "Doktor Honoris Causa",
+                 "Dr. Eng.": "Doktor Engineering", "Dr.Eng.": "Doktor Engineering", "Dr.": "Doktor", "dr.": "Dokter",
+                 "Drs.": "Doktorandus", "Dra.": "Doktoranda", "Ir.": "Insinyur"}
+TITLES_AFTER = {"S.T.": "Sarjana Teknik", "S.Kom.": "Sarjana Komputer", "S.Si.": "Sarjana Sains",
+                "S.E.": "Sarjana Ekonomi", "S.H.": "Sarjana Hukum", "S.Pd.": "Sarjana Pendidikan",
+                "S.K.M.": "Sarjana Kesehatan Masyarakat", "S.Sos.": "Sarjana Sosial",
+                "S.Tr.T.": "Sarjana Terapan Teknik", "M.T.": "Magister Teknik", "M.Kom.": "Magister Komputer",
+                "M.M.": "Magister Manajemen", "M.Pd.": "Magister Pendidikan", "M.Sc.": "Master of Science",
+                "M.Sc.Eng.": "Master of Science in Engineering", "M.Eng.": "Master of Engineering",
+                "Ph.D.": "Doctor of Philosophy", "ASEAN Eng.": "Asean Engineer"}
+TITLES = {**TITLES_BEFORE, **TITLES_AFTER}
+# Longest first, so "M.Sc.Eng." is not read as "M.Sc." and "Dr. (HC)" not as "Dr.".
+TITLE = re.compile(r"(?<![\w.])(" + "|".join(map(re.escape, sorted(TITLES, key=len, reverse=True))) + r")(?!\w)")
+# Dots that never end a sentence: a title's, and one glued to the next letter ("S.Tr.T" while it streams in).
+TITLE_DOTS = re.compile(TITLE.pattern + r"|\.(?=[A-Za-z])")
+
+
+def say_title(m: re.Match) -> str:
+    title, rest = m.group(1), m.string[m.end():]
+    # "..., M.Sc." at the end, or before a new capitalised sentence: that dot is also the full stop.
+    ends = title in TITLES_AFTER and re.match(r"\s*$|\s+[A-Z]", rest) and not TITLE.match(rest.lstrip())
+    return TITLES[title] + ("." if ends else "")
+
+
 SCALES = r"(?:\s?(ribu|juta|miliar|triliun))?"
 NUM = r"(\d{1,3}(?:\.\d{3})+|\d+)(?:,(\d+))?"  # Indonesian: 1.500.000,75
 
@@ -81,6 +116,7 @@ FRONT = [
     (re.compile(r"^\s*\|.*\|\s*$\n?", re.M), lambda m: ""),
     (re.compile(r"[\U0001F000-\U0001FAFF☀-➿️‍]"), lambda m: ""),
     (re.compile(r"\b(" + "|".join(FIXED) + r")\b"), lambda m: FIXED[m.group(1)]),
+    (TITLE, say_title),
 ]
 
 
@@ -187,7 +223,9 @@ def word_times(shown: list[str], audio: bytes, sample_rate: int) -> list[float]:
         return [0.0] * len(shown)
     start, end = voiced[0] / sample_rate, voiced[-1] / sample_rate
     lang = language(" ".join(shown))
-    weights = [max(1, len(re.findall(r"[aiueo]+", normalize(w, lang).lower()))) + PAUSES.get(w[-1], 0.0) for w in shown]
+    said = [normalize(w, lang) for w in shown]
+    # The pause comes from the spoken form: "Prof." is said "Profesor", with no stop after it.
+    weights = [max(1, len(re.findall(r"[aiueo]+", w.lower()))) + PAUSES.get(w[-1:], 0.0) for w in said]
     total, before, times = sum(weights), 0.0, []
     for w in weights:
         times.append(float(start + (end - start) * before / total))

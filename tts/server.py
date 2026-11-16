@@ -9,6 +9,7 @@ When the HTTP client disconnects (barge-in), the generator is closed and nano-vl
 cancels the sequence.
 """
 
+import asyncio
 import os
 import time
 from contextlib import asynccontextmanager
@@ -29,11 +30,62 @@ VOICE_TEXT_FILE = os.environ.get("VOICE_TEXT_FILE", "/voices/raisa-ref.txt")
 # Share of the whole GPU this process may use (weights + KV cache); llm and asr share the card.
 GPU_MEMORY_UTILIZATION = float(os.environ.get("TTS_GPU_MEMORY_UTILIZATION", "0.3"))
 
+# Every sentence came out with about 0.5 s of digital silence before its first word (0.36-0.81 s).
+# The robot plays sentences back to back, so that made the first word late and the pause between two
+# sentences 0.9 s, against 0.41 s in the training recordings. Cut to LEAD_SECS, the pause is the
+# sentence's own trailing silence (0.35 s). Measured in train/v3/smooth_report.md.
+LEAD_SECS = 0.05
+SPEECH_LEVEL = 0.01  # the silence is exact zeros; speech passes this within 5 ms of its onset
+
 state: dict = {}
 
 
+class Leveller:
+    """Holds a sentence near the level it started at.
+
+    VoxCPM2 + LoRA fades over a sentence: the last 2.5 s are 3 dB quieter than the first at 8 s and 5 dB at
+    20 s, against 1 dB in the training recordings, and it is heard as a muffled voice (the spectrum does not
+    change). The level of the first REF_SECS of speech is the target; a slow average of the level after it
+    sets a gain that makes up what falls more than ALLOW_DB below, at most MAX_DB, ramped within each chunk.
+    ALLOW_DB keeps the natural decline of about 1 dB. Measured in train/v3/smooth_report.md (level_sim.py).
+    """
+
+    REF_SECS, TAU_SECS, ALLOW_DB, MAX_DB, SPEECH_DB = 1.5, 1.5, 1.5, 6.0, -40.0
+
+    def __init__(self, rate: int):
+        self.rate, self.energy, self.samples, self.level, self.gain_db = rate, 0.0, 0, None, 0.0
+
+    def __call__(self, wav: np.ndarray) -> np.ndarray:
+        power = float(np.mean(wav.astype(np.float64) ** 2)) if len(wav) else 0.0
+        target = self.gain_db
+        if 10 * np.log10(power + 1e-12) > self.SPEECH_DB:
+            if self.samples < self.REF_SECS * self.rate:
+                self.energy += power * len(wav)
+                self.samples += len(wav)
+            else:
+                level = 10 * np.log10(power)
+                step = min(1.0, len(wav) / self.rate / self.TAU_SECS)
+                self.level = level if self.level is None else self.level + step * (level - self.level)
+                ref = 10 * np.log10(self.energy / self.samples)
+                target = float(np.clip(ref - self.level - self.ALLOW_DB, 0.0, self.MAX_DB))
+        ramp = np.linspace(self.gain_db, target, len(wav), dtype=np.float32)
+        self.gain_db = target
+        return wav * 10 ** (ramp / 20)
+
+
 async def synth(text: str):
+    lead = int(LEAD_SECS * state["sample_rate"])
+    held = np.zeros(0, dtype=np.float32)  # silence so far, None once speech has started
+    level = Leveller(state["sample_rate"])
     async for wav in state["pool"].generate(target_text=text, **state["voice"]):
+        wav = level(wav)
+        if held is not None:
+            wav = np.concatenate([held, wav])
+            loud = np.flatnonzero(np.abs(wav) > SPEECH_LEVEL)
+            if not len(loud):
+                held = wav[-lead:]
+                continue
+            wav, held = wav[max(0, loud[0] - lead):], None
         yield (np.clip(wav, -1.0, 1.0) * 32767).astype("<i2").tobytes()
 
 
@@ -63,10 +115,18 @@ async def lifespan(app: FastAPI):
         "ref_audio_latents": await pool.encode_latents(wav, "wav"),
         "temperature": 0.7,
     }
-    # Warmup so the first visitor does not pay for kernel autotuning.
+    # Warmup so the first visitor does not pay for kernel autotuning. Kernels settle per batch size:
+    # without the 2..5 rounds, the first turns of five robots at once waited 250-570 ms for audio.
+    async def warm(text: str):
+        async for _ in synth(text):
+            pass
+
+    # Different lengths, so each round also runs the smaller batches as its sentences finish.
+    texts = ["Halo, selamat datang.", "Ada yang bisa saya bantu?", "Silakan ikuti saya ke lobi.",
+             "Baik, saya antar Anda sekarang.", "Ruang rapat ada di lantai dua, di sebelah kanan lift."]
     started = time.time()
-    async for _ in synth("Halo, selamat datang."):
-        pass
+    for n in (1, 2, 3, 4, 5):
+        await asyncio.gather(*map(warm, texts[:n]))
     print(f"warmup {time.time() - started:.2f}s, sample_rate={state['sample_rate']}", flush=True)
     yield
     await pool.stop()

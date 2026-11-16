@@ -43,6 +43,23 @@ LoRA v2 in `voices/raisa-lora-v2/` (the voice actor's 600 clips, picked by measu
 reference. All checkpoints and the training data are in the private HF repos
 `yukebrillianth/raisa-voxcpm2-lora` and `yukebrillianth/raisa-voice-dataset`.
 
+## Another LLM
+
+The orchestrator talks to any OpenAI-compatible chat API. Set these in `.env` (defaults in
+brackets) and run `docker compose up -d orchestrator`:
+
+| variable | meaning |
+| --- | --- |
+| `LLM_URL` | base URL [`http://llm:8080/v1`, the bundled llama.cpp] |
+| `LLM_MODEL` | model name sent in the request [`gemma-4-12b`] |
+| `LLM_API_KEY` | API key [`local`; llama.cpp ignores it] |
+| `LLM_EXTRA_BODY` | JSON merged into every chat request [`{"chat_template_kwargs": {"enable_thinking": false}}`, which turns thinking off in llama.cpp]. Use `{}` for an API that rejects unknown fields, or that service's own switch, e.g. `LLM_EXTRA_BODY='{"reasoning_effort": "none"}'` (single quotes in `.env`). |
+
+For another llama.cpp model, change the `-m` line of the `llm` service in `compose.yaml` and
+`LLM_MODEL`. For an external API the `llm` service is not needed, but the orchestrator still
+waits for it (`depends_on`), so leave it running or remove that dependency. The model must
+support tool calls, and thinking must be off or first audio takes seconds.
+
 ## Simulator (from a laptop)
 
 The page needs a secure context for the microphone, which `localhost` is, so tunnel the port:

@@ -6,7 +6,8 @@ with a timestamp, answers tool calls with a dummy result, and saves the reply.
     python try_client.py ws://localhost:8765/ws question.wav --out reply.wav
     python try_client.py ws://localhost:8765/ws question.wav --barge-in other.wav
 
-TTFAB is measured from the last byte of the user's speech to the first reply byte.
+TTFAB is measured from the last byte of the user's speech to the first reply byte, "first sound"
+to the first reply audio that is not silence (what the visitor actually waits for).
 """
 
 import argparse
@@ -64,6 +65,7 @@ async def main(args):
     log = lambda msg: print(f"[{time.monotonic() - t0:7.3f}] {msg}", flush=True)  # noqa: E731
     reply = bytearray()
     audio_times: list[float] = []
+    sound_times: list[float] = []  # audio messages that are not silence
     events: list[tuple[float, str]] = []
     spoken: list[str] = []
 
@@ -84,6 +86,8 @@ async def main(args):
                 now = time.monotonic()
                 if isinstance(message, bytes):
                     audio_times.append(now)
+                    if max(abs(v) for v in memoryview(message).cast("h")) > 300:
+                        sound_times.append(now)
                     reply.extend(message)
                     continue
                 event = json.loads(message)
@@ -130,6 +134,8 @@ async def main(args):
             print(f"audio gap {cur - prev:.2f} s at {prev - t0:.2f} s")
     first = first_audio_after(speech_end)
     print(f"TTFAB turn 1: {(first - speech_end) * 1000:.0f} ms" if first else "TTFAB turn 1: no audio")
+    sound = next((a for a in sound_times if a > speech_end), None)
+    print(f"first sound turn 1: {(sound - speech_end) * 1000:.0f} ms" if sound else "first sound turn 1: none")
     if args.barge_in:
         cut = next((t for t, kind in events if kind == "interrupted" and t > barge_start), None)
         if cut is None:

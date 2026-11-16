@@ -5,6 +5,7 @@ robot audio 16k -> Silero VAD + Smart Turn v3.2 -> Whisper (asr) -> Gemma 4 (lla
 """
 
 import asyncio
+import json
 import os
 import random
 import secrets
@@ -50,7 +51,9 @@ from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
 from pipecat.services.llm_service import FunctionCallParams
 from pipecat.services.openai.llm import OpenAILLMService
 from pipecat.transports.websocket.fastapi import FastAPIWebsocketParams, FastAPIWebsocketTransport
-from pipecat.utils.text.pattern_pair_aggregator import MatchAction, PatternPairAggregator
+from pipecat.utils.text.base_text_aggregator import TextType
+from pipecat.utils.text.pattern_pair_aggregator import MatchAction, PatternMatch, PatternPairAggregator
+from pipecat.utils.text.simple_text_aggregator import SimpleTextAggregator
 from pipecat.utils.context.llm_context_summarization import (
     LLMAutoContextSummarizationConfig,
     LLMContextSummaryConfig,
@@ -59,16 +62,21 @@ from pipecat.workers.runner import WorkerRunner
 
 from asr_stt import WhisperServerSTTService
 from protocol import IN_SAMPLE_RATE, OUT_SAMPLE_RATE, RobotSerializer, gemini_to_openai_tools
+from speech_text import TITLE_DOTS, language
 from voxcpm_tts import SentenceWords, VoxCPMTTSService
 
+# Any OpenAI-compatible chat API: another llama.cpp model or an external service, by config only.
 LLM_URL = os.environ.get("LLM_URL", "http://localhost:8080/v1")
+LLM_MODEL = os.environ.get("LLM_MODEL", "gemma-4-12b")
+LLM_API_KEY = os.environ.get("LLM_API_KEY", "local")
+# JSON merged into every chat request. The default turns Gemma's thinking off in llama.cpp (with
+# it on, the first token takes about 6 s); set "{}" for an API that rejects unknown fields.
+LLM_EXTRA_BODY = json.loads(os.environ.get("LLM_EXTRA_BODY") or '{"chat_template_kwargs": {"enable_thinking": false}}')
 TTS_URL = os.environ.get("TTS_URL", "http://localhost:8000")
 ASR_URL = os.environ.get("ASR_URL", "http://localhost:8001")
 # Unset only for local development; compose requires it because port 8765 is reachable on the LAN.
 VOICE_TOKEN = os.environ.get("VOICE_TOKEN", "")
 SIMULATOR = Path(__file__).with_name("simulator.html")
-LLM_MODEL = "gemma-4-12b"
-NO_THINKING = {"chat_template_kwargs": {"enable_thinking": False}}
 TOOL_TIMEOUT_SECS = 30.0
 # While a tool runs, this much silence from the robot gets a short spoken filler.
 FILLER_AFTER_SECS = 0.7
@@ -102,6 +110,56 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
+
+
+class TitleDots(SimpleTextAggregator):
+    """Keeps the sentence splitter off academic titles: "Prof. Dr. Ir." is not a sentence."""
+
+    async def _check_sentence_with_lookahead(self, char: str, *, protected_end: int = 0):
+        ends = [m.end() for m in TITLE_DOTS.finditer(self._text)]
+        return await super()._check_sentence_with_lookahead(char, protected_end=max(protected_end, *ends, 0))
+
+
+class SentenceAggregator(PatternPairAggregator, TitleDots):
+    """Sentences for the TTS. PatternPairAggregator reaches the splitter through super(), so TitleDots sits behind it.
+
+    A one-word English sentence goes to the voice together with the next one: alone, "Sure." was said
+    as Indonesian "sur" 8 times of 8, with the next sentence 7 of 8 right (train/v3/smooth_report.md).
+    One-word Indonesian sentences ("Baik.", "Oke.") were right alone, so they are not held up.
+    """
+
+    _held: PatternMatch | None = None
+
+    @staticmethod
+    def _join(first, second) -> PatternMatch:
+        text = f"{first.text} {second.text}"
+        return PatternMatch(content=text, type=second.type, full_match=text)
+
+    async def aggregate(self, text: str):
+        async for a in super().aggregate(text):
+            held, self._held = self._held, None
+            if held is not None:
+                if a.type != TextType.SENTENCE:  # a code block: the held word goes on its own first
+                    yield held
+                else:
+                    a = self._join(held, a)
+            if a.type == TextType.SENTENCE and len(a.text.split()) == 1 and language(a.text) == "en":
+                self._held = a
+                continue
+            yield a
+
+    async def flush(self):
+        held, self._held = self._held, None  # taken first: the parent's flush calls reset()
+        rest = await super().flush()  # always a sentence: an unclosed code block is dropped
+        return held if rest is None else rest if held is None else self._join(held, rest)
+
+    async def handle_interruption(self):
+        self._held = None
+        await super().handle_interruption()
+
+    async def reset(self):
+        self._held = None
+        await super().reset()
 
 
 class ToolRelay:
@@ -342,12 +400,12 @@ async def robot_session(websocket: WebSocket):
             )
 
     llm = OpenAILLMService(
-        api_key="local",
+        api_key=LLM_API_KEY,
         base_url=LLM_URL,
         settings=OpenAILLMService.Settings(
             model=LLM_MODEL,
             system_instruction=system,
-            extra={"extra_body": NO_THINKING},
+            extra={"extra_body": LLM_EXTRA_BODY},
         ),
     )
     transport = FastAPIWebsocketTransport(
@@ -375,7 +433,7 @@ async def robot_session(websocket: WebSocket):
             user_aggregator,
             llm,
             LLMTextProcessor(
-                text_aggregator=PatternPairAggregator().add_pattern("code", "```", "```", MatchAction.AGGREGATE)
+                text_aggregator=SentenceAggregator().add_pattern("code", "```", "```", MatchAction.AGGREGATE)
             ),
             VoxCPMTTSService(base_url=TTS_URL),
             events,

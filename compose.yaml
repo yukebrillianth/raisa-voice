@@ -27,6 +27,8 @@ services:
     volumes:
       - ${HOME}/.cache/huggingface:/root/.cache/huggingface
       - ./voices:/voices:ro
+    environment:
+      VOICE_LORA: ${VOICE_LORA:-/voices/raisa-lora-v2}
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:8000/health"]
       interval: 5s
@@ -52,7 +54,11 @@ services:
     ports:
       - "8765:8765"
     environment:
-      LLM_URL: http://llm:8080/v1
+      # Another model or an external OpenAI-compatible API: set these in .env (see README).
+      LLM_URL: ${LLM_URL:-http://llm:8080/v1}
+      LLM_MODEL: ${LLM_MODEL:-gemma-4-12b}
+      LLM_API_KEY: ${LLM_API_KEY:-local}
+      LLM_EXTRA_BODY: ${LLM_EXTRA_BODY:-}
       TTS_URL: http://tts:8000
       ASR_URL: http://asr:8000
       VOICE_TOKEN: ${VOICE_TOKEN:?set VOICE_TOKEN in .env}

@@ -46,6 +46,8 @@ CASES = [
     ("Ruang VIP, GPU, API, QR, NFC, ID, IT dan GB", "Ruang VIP, GPU, API, QR, NFC, ID, IT dan GB"),
     ("Colokkan flashdisk ke port USB", "Cholokkan flashdisk ke port USB"),
     ("Kabelnya colokkan ke sini, cocok kan?", "Kabelnya cholokkan ke sini, cocok kan?"),
+    ("Sudah dicolokkan ke colokan? Colok saja, warnanya mencolok", "Sudah dicholokkan ke cholokan? Colok saja, warnanya mencolok"),
+    ("Jangan parkir seenaknya, ada seekor kucing di lantai keenam", "Jangan parkir se-enaknya, ada seekor kucing di lantai keenam"),
     ("Pemakaian 450 kWh", "Pemakaian empat ratus lima puluh kilowatt hour"),
     ("Prosesor 3,5 GHz", "Prosesor tiga koma lima gigahertz"),
     ("Audio 48 kHz", "Audio empat puluh delapan kilohertz"),
@@ -73,6 +75,22 @@ CASES = [
     ("Welcome to ITS, I am RAISA.", "Welcome to ITS, I am Raisa."),
     ("The shop opens at 9:00 WIB.", "The shop opens at nine W I B."),
     ("We open at 9:05 for 2.5 km runs.", "We open at nine oh five for two point five kilometers runs."),
+    # academic titles: said in full, their dots give no pause; a degree keeps one dot at a sentence end
+    ("Prof. Dr. Ir. Budi Santoso, S.T., M.Sc. akan hadir besok.",
+     "Profesor Doktor Insinyur Budi Santoso, Sarjana Teknik, Master of Science akan hadir besok."),
+    ("Pembicaranya Prof. Dr. Ir. Budi, S.T., M.Sc. Beliau dari ITS.",
+     "Pembicaranya Profesor Doktor Insinyur Budi, Sarjana Teknik, Master of Science. Beliau dari ITS."),
+    ("Dr. (HC) Ir. Soekarno dan dr. Sinta, S.K.M.", "Doktor Honoris Causa Insinyur Soekarno dan Dokter Sinta, Sarjana Kesehatan Masyarakat."),
+    ("Dr.Eng. Rudy, S.T., M.T. dan Ir. Joko, M.Eng., Ph.D. hadir.",
+     "Doktor Engineering Rudy, Sarjana Teknik, Magister Teknik dan Insinyur Joko, Master of Engineering, Doctor of Philosophy hadir."),
+    ("Prof. Ir. Bambang, M.Sc.Eng., ASEAN Eng. membuka acara.",
+     "Profesor Insinyur Bambang, Master of Science in Engineering, Asean Engineer membuka acara."),
+    ("Bu Dra. Sri, M.Pd. dan Pak Drs. Hadi, M.M. sudah datang.",
+     "Bu Doktoranda Sri, Magister Pendidikan dan Pak Doktorandus Hadi, Magister Manajemen sudah datang."),
+    ("Andi, S.Kom., S.Si., S.E., S.H., S.Pd., S.Sos., S.Tr.T., M.Kom.",
+     "Andi, Sarjana Komputer, Sarjana Sains, Sarjana Ekonomi, Sarjana Hukum, Sarjana Pendidikan, Sarjana Sosial, "
+     "Sarjana Terapan Teknik, Magister Komputer."),
+    ("Airnya habis. Irigasi di Dr.X.", "Airnya habis. Irigasi di Dr.X."),
 ]
 
 
@@ -105,3 +123,4 @@ def test_table_rows_are_not_spoken():
 def test_screen_text_strips_markdown_but_keeps_digits():
     shown = asyncio.run(screen_text("**Harga** tiket *Rp150.000*\n| a | b |"))
     assert shown == "Harga tiket Rp150.000"
+

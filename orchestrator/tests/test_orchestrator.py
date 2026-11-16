@@ -101,6 +101,32 @@ def test_sentence_words_go_out_before_its_audio_and_tts_gets_spoken_words():
     assert asked == ["Harga seratus lima puluh ribu rupiah."]
 
 
+def test_titles_do_not_split_the_sentence():
+    from pipecat.utils.text.pattern_pair_aggregator import MatchAction
+
+    from bot import SentenceAggregator
+
+    async def sentences(text):
+        aggregator = SentenceAggregator().add_pattern("code", "```", "```", MatchAction.AGGREGATE)
+        out = []
+        for i in range(0, len(text), 3):  # LLM tokens arrive a few characters at a time
+            out += [a.text async for a in aggregator.aggregate(text[i : i + 3])]
+        rest = await aggregator.flush()
+        return out + ([rest.text] if rest else [])
+
+    assert run(sentences("Pembicaranya Prof. Dr. Ir. Budi, S.T., M.Sc. akan hadir besok. Silakan datang.")) == [
+        "Pembicaranya Prof. Dr. Ir. Budi, S.T., M.Sc. akan hadir besok.", "Silakan datang."]
+    assert run(sentences("Ada Dr. (HC) Ir. Joko, S.Tr.T., M.Sc.Eng., ASEAN Eng. dan dr. Sinta, Ph.D. Mereka di lobi.")) == [
+        "Ada Dr. (HC) Ir. Joko, S.Tr.T., M.Sc.Eng., ASEAN Eng. dan dr. Sinta, Ph.D. Mereka di lobi."]
+    # ordinary sentences still split, also right before a title; one-word Indonesian ones are not held
+    assert run(sentences("Baik. Saya antar ke lobi! Prof. Budi menunggu. Harga Rp150.000. Oke?")) == [
+        "Baik.", "Saya antar ke lobi!", "Prof. Budi menunggu.", "Harga Rp150.000.", "Oke?"]
+    # a one-word English sentence goes with the next one, or alone when nothing follows
+    assert run(sentences("Sure. Please follow me. The lift is on your right.")) == [
+        "Sure. Please follow me.", "The lift is on your right."]
+    assert run(sentences("Okay.")) == ["Okay."]
+
+
 def test_word_times_follow_spoken_length_and_pauses():
     from speech_text import word_times
 
@@ -112,6 +138,9 @@ def test_word_times_follow_spoken_length_and_pauses():
     # "Rp150.000," is spoken as ~10 syllables plus a comma pause: by far the longest word
     assert times[2] - times[1] > 3 * (times[1] - times[0])
     assert word_times(["a"], b"\x00\x00" * 50, rate) == [0.0]
+    # "Prof." is said "Profesor": three syllables of the eight, and its dot is no pause
+    times = word_times(["Prof.", "Budi", "Pak", "Budi"], audio, rate)
+    assert abs(times[1] - times[0] - 3 / 8) < 0.01
 
 
 def test_spoken_text_sends_each_word_as_its_audio_plays():
