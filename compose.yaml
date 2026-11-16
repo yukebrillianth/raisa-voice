@@ -1,0 +1,59 @@
+# Single-host RAISA voice stack for the RTX 5090. Only the orchestrator is exposed.
+services:
+  llm:
+    # server-cuda (CUDA 12), llama.cpp build 12407. The cuda13 tag needs a newer driver than 590 (CUDA 13.1).
+    image: ghcr.io/ggml-org/llama.cpp:server-cuda@sha256:22bd49f4cf68236a63c5a187d7d1867ffb08472611ddfbf0392b6842a1b30d44
+    gpus: all
+    restart: unless-stopped
+    volumes:
+      # Whole repo dir: snapshot files are symlinks into ../../blobs.
+      - ${HOME}/.cache/huggingface/hub/models--google--gemma-4-12B-it-qat-q4_0-gguf:/models:ro
+    # Thinking off: with it on, TTFT on audio goes from ~80 ms to ~6 s.
+    # 5 slots (one per robot) share 64k tokens of KV cache, about 13k per conversation.
+    command: >
+      -m /models/snapshots/29d097773436b69ff9feafd636ab4cf873786537/gemma-4-12b-it-qat-q4_0.gguf
+      --mmproj /models/snapshots/29d097773436b69ff9feafd636ab4cf873786537/mmproj-gemma-4-12b-it-qat-q4_0.gguf
+      -ngl 99 -c 65536 -fa on -np 5 --jinja --reasoning off --no-webui
+      --host 0.0.0.0 --port 8080
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/health"]
+      interval: 5s
+      retries: 60
+
+  tts:
+    build: ./tts
+    gpus: all
+    restart: unless-stopped
+    volumes:
+      - ${HOME}/.cache/huggingface:/root/.cache/huggingface
+      - ./voices:/voices:ro
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8000/health"]
+      interval: 5s
+      retries: 120
+
+  asr:
+    build: ./asr
+    gpus: all
+    restart: unless-stopped
+    volumes:
+      - ${HOME}/.cache/huggingface:/root/.cache/huggingface
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8000/health"]
+      interval: 5s
+      retries: 60
+
+  orchestrator:
+    build: ./orchestrator
+    restart: unless-stopped
+    ports:
+      - "8765:8765"
+    environment:
+      LLM_URL: http://llm:8080/v1
+      TTS_URL: http://tts:8000
+      ASR_URL: http://asr:8000
+      VOICE_TOKEN: ${VOICE_TOKEN:?set VOICE_TOKEN in .env}
+    depends_on:
+      llm: { condition: service_healthy }
+      tts: { condition: service_healthy }
+      asr: { condition: service_healthy }

@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Simulator RAISA</title>
+<style>
+  :root { --bg: #f6f7f9; --fg: #1b1f24; --muted: #5b6470; --card: #fff; --line: #d8dde3; --accent: #0b5cad; --user: #e7f0fb; --bot: #eef7ee; --warn: #9a3412; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #121417; --fg: #e8eaed; --muted: #9aa3ad; --card: #1b1e22; --line: #2e333a; --accent: #6fb1ff; --user: #1d2b3d; --bot: #1d2e22; --warn: #fdba74; } }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.45 system-ui, sans-serif; }
+  main { max-width: 960px; margin: 0 auto; padding: 16px; display: grid; gap: 16px; grid-template-columns: 1fr; }
+  @media (min-width: 860px) { main { grid-template-columns: 340px 1fr; } }
+  section { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 14px; min-width: 0; }
+  h1 { font-size: 18px; margin: 0 0 10px; }
+  label { display: block; font-size: 13px; color: var(--muted); margin: 10px 0 4px; }
+  input, textarea { width: 100%; padding: 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--fg); font: inherit; }
+  textarea { min-height: 110px; resize: vertical; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  button { padding: 8px 12px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); font: inherit; cursor: pointer; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button:disabled { opacity: .5; cursor: default; }
+  button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  #status { margin-top: 10px; font-size: 13px; color: var(--muted); }
+  #meter { height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; margin-top: 8px; }
+  #meter > div { height: 100%; width: 0; background: var(--accent); transition: width 80ms; }
+  #log { height: min(70vh, 640px); overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+  .msg { padding: 7px 10px; border-radius: 8px; max-width: 90%; overflow-wrap: anywhere; }
+  .user { background: var(--user); align-self: flex-end; }
+  .bot { background: var(--bot); align-self: flex-start; }
+  .sys { font-size: 12px; color: var(--muted); align-self: center; text-align: center; }
+  .warn { color: var(--warn); }
+  .lat { font-size: 12px; color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <section aria-labelledby="cfg-title">
+    <h1 id="cfg-title">Simulator RAISA</h1>
+    <p id="insecure" class="warn" role="alert" hidden>
+      Mic tidak tersedia: halaman ini dibuka lewat http biasa (bukan secure context).
+      Mode teks tetap jalan. Untuk mic, buat tunnel di laptop:
+      <code>ssh -N -L 8765:localhost:8765 teaching-factory@10.7.101.217</code>
+      lalu buka <a href="http://localhost:8765/">http://localhost:8765/</a>.
+    </p>
+    <label for="token">Token (VOICE_TOKEN)</label>
+    <input id="token" type="password" autocomplete="off">
+    <label for="prompt">System prompt</label>
+    <textarea id="prompt">Kamu RAISA, robot pelayan di Teaching Factory Pusat Robotika ITS. Lokasi yang bisa kamu tuju: lobi, ruang rapat, lab robotika, toilet. Pakai cari_info untuk pertanyaan tentang ITS atau acara.</textarea>
+    <div class="row">
+      <button id="connect" class="primary">Connect</button>
+      <button id="mute" disabled aria-pressed="false">Mute mic</button>
+      <button id="interrupt" disabled>Interrupt</button>
+      <button id="clear" disabled>Clear context</button>
+    </div>
+    <label for="say">Teks</label>
+    <textarea id="say" style="min-height:60px">Tiketnya Rp150.000, buka pukul 08.00 WIB sampai 16.00 di ITS.</textarea>
+    <div class="row">
+      <button id="ask" disabled>Tanya (seperti diucapkan)</button>
+      <button id="speak" disabled>Ucapkan persis (tanpa LLM)</button>
+    </div>
+    <div id="meter" aria-hidden="true"><div></div></div>
+    <p id="status" role="status">Belum terhubung.</p>
+    <p class="lat">Latensi = akhir suara kamu (dari level mic) sampai audio jawaban pertama. Pakai headset supaya suara robot tidak masuk mic.</p>
+  </section>
+  <section aria-labelledby="log-title">
+    <h1 id="log-title">Percakapan</h1>
+    <div id="log" aria-live="polite"></div>
+  </section>
+</main>
+<script>
+"use strict";
+const IN_RATE = 16000, OUT_RATE = 24000, CHUNK = 640; // 40 ms at 16 kHz
+const VOICE_RMS = 0.02; // mic level counted as the visitor speaking
+const TOOLS = [
+  { name: "antar_ke_titik", description: "Mengantar pengunjung secara fisik ke sebuah lokasi di gedung.",
+    parameters: { type: "OBJECT", properties: { lokasi: { type: "STRING", description: "Nama lokasi tujuan" } }, required: ["lokasi"] } },
+  { name: "cari_info", description: "Mencari informasi tentang ITS, gedung, atau acara.",
+    parameters: { type: "OBJECT", properties: { pertanyaan: { type: "STRING" } }, required: ["pertanyaan"] } },
+];
+const MOCK = {
+  antar_ke_titik: (a) => ({ status: "berangkat", lokasi: a.lokasi, catatan: "Robot mulai berjalan, pengunjung diminta mengikuti." }),
+  cari_info: () => ({ hasil: "Teaching Factory buka Senin sampai Jumat pukul 08.00 sampai 16.00. Ruang rapat di lantai 2." }),
+};
+
+const $ = (id) => document.getElementById(id);
+const logEl = $("log");
+let ws = null, ready = false, muted = false;
+let micCtx = null, micStream = null, playCtx = null;
+let playing = [], nextTime = 0, lastVoice = 0, awaitingReply = false, botBubble = null;
+
+try { $("token").value = localStorage.getItem("raisa-token") || ""; } catch (e) {}
+// getUserMedia and AudioWorklet need a secure context (https or localhost); text mode does not.
+const MIC_OK = window.isSecureContext && !!navigator.mediaDevices;
+if (!MIC_OK) $("insecure").hidden = false;
+window.addEventListener("error", (e) => log("error JS: " + e.message, "sys warn"));
+window.addEventListener("unhandledrejection", (e) => log("error: " + (e.reason && e.reason.message || e.reason), "sys warn"));
+
+function log(text, cls) {
+  const div = document.createElement("div");
+  div.className = "msg " + cls;
+  div.textContent = text;
+  logEl.append(div);
+  logEl.scrollTop = logEl.scrollHeight;
+  return div;
+}
+function setStatus(text) { $("status").textContent = text; }
+function setConnected(on) {
+  $("connect").textContent = on ? "Disconnect" : "Connect";
+  for (const id of ["mute", "interrupt", "clear", "speak", "ask"]) $(id).disabled = !on;
+}
+
+// Capture context at 16 kHz: the browser resamples the mic, the worklet only converts to PCM16.
+// shortcut: Firefox refuses a 16 kHz context fed by a 48 kHz mic, use Chrome or Safari.
+const WORKLET = `
+class Pcm16 extends AudioWorkletProcessor {
+  constructor() { super(); this.buf = new Int16Array(${CHUNK}); this.n = 0; this.sum = 0; }
+  process(inputs) {
+    const ch = inputs[0][0];
+    if (!ch) return true;
+    for (let i = 0; i < ch.length; i++) {
+      const s = Math.max(-1, Math.min(1, ch[i]));
+      this.sum += s * s;
+      this.buf[this.n++] = s < 0 ? s * 0x8000 : s * 0x7fff;
+      if (this.n === ${CHUNK}) {
+        this.port.postMessage({ pcm: this.buf.buffer, rms: Math.sqrt(this.sum / ${CHUNK}) }, [this.buf.buffer]);
+        this.buf = new Int16Array(${CHUNK}); this.n = 0; this.sum = 0;
+      }
+    }
+    return true;
+  }
+}
+registerProcessor("pcm16", Pcm16);`;
+
+async function startMic() {
+  micStream = await navigator.mediaDevices.getUserMedia({
+    audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+  });
+  micCtx = new AudioContext({ sampleRate: IN_RATE });
+  await micCtx.audioWorklet.addModule(URL.createObjectURL(new Blob([WORKLET], { type: "text/javascript" })));
+  const node = new AudioWorkletNode(micCtx, "pcm16");
+  node.port.onmessage = ({ data }) => {
+    $("meter").firstElementChild.style.width = Math.min(100, data.rms * 400) + "%";
+    if (muted || !ready || ws.readyState !== WebSocket.OPEN) return;
+    if (data.rms > VOICE_RMS) { lastVoice = performance.now(); awaitingReply = true; }
+    ws.send(data.pcm);
+  };
+  micCtx.createMediaStreamSource(micStream).connect(node);
+}
+
+function playPcm(buf) {
+  const pcm = new Int16Array(buf);
+  const audio = playCtx.createBuffer(1, pcm.length, OUT_RATE);
+  const ch = audio.getChannelData(0);
+  for (let i = 0; i < pcm.length; i++) ch[i] = pcm[i] / 0x8000;
+  if (awaitingReply && lastVoice) {
+    log(`≈ ${Math.round(performance.now() - lastVoice)} ms dari akhir suara ke audio pertama`, "sys");
+    awaitingReply = false;
+  }
+  const src = playCtx.createBufferSource();
+  src.buffer = audio;
+  src.connect(playCtx.destination);
+  nextTime = Math.max(nextTime, playCtx.currentTime + 0.02); // gapless: queue right after the previous chunk
+  src.start(nextTime);
+  nextTime += audio.duration;
+  playing.push(src);
+  src.onended = () => { playing = playing.filter((s) => s !== src); };
+}
+
+function stopPlayback() {
+  for (const s of playing) { try { s.stop(); } catch (e) {} }
+  playing = []; nextTime = 0;
+}
+
+function onEvent(ev) {
+  switch (ev.type) {
+    case "setup_complete": ready = true; setStatus("Terhubung. Silakan bicara."); log("sesi siap", "sys"); break;
+    case "user_transcript": log(ev.text, "user"); botBubble = null; break;
+    case "assistant_text":
+      if (!botBubble) botBubble = log("", "bot");
+      botBubble.textContent += (botBubble.textContent ? " " : "") + ev.text;
+      logEl.scrollTop = logEl.scrollHeight;
+      break;
+    case "tool_call":
+      for (const call of ev.functionCalls) {
+        const response = (MOCK[call.name] || (() => ({ error: "tool tidak dikenal" })))(call.args || {});
+        log(`tool_call ${call.name}(${JSON.stringify(call.args)}) -> ${JSON.stringify(response)}`, "sys");
+        ws.send(JSON.stringify({ type: "tool_response", functionResponses: [{ id: call.id, name: call.name, response }] }));
+      }
+      break;
+    case "interrupted": stopPlayback(); log("dipotong (barge-in)", "sys"); botBubble = null; break;
+    case "turn_complete": botBubble = null; break;
+    case "error": log("error: " + ev.message, "sys warn"); setStatus("Error: " + ev.message); break;
+    default: log(JSON.stringify(ev), "sys");
+  }
+}
+
+async function connect() {
+  const token = $("token").value;
+  try { localStorage.setItem("raisa-token", token); } catch (e) {}
+  playCtx = new AudioContext({ sampleRate: OUT_RATE });
+  if (MIC_OK) {
+    try { await startMic(); } catch (e) { log("mic gagal, lanjut mode teks: " + e.message, "sys warn"); }
+  } else {
+    log("mode teks (tanpa mic)", "sys");
+  }
+  ws = new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws`);
+  ws.onerror = () => log("WebSocket error (server tidak terjangkau?)", "sys warn");
+  ws.binaryType = "arraybuffer";
+  ws.onopen = () => {
+    setConnected(true); setStatus("Menunggu setup_complete...");
+    ws.send(JSON.stringify({ type: "setup", token, systemInstruction: $("prompt").value, tools: TOOLS }));
+  };
+  ws.onmessage = (m) => (typeof m.data === "string" ? onEvent(JSON.parse(m.data)) : playPcm(m.data));
+  ws.onclose = (e) => {
+    const why = e.code === 1008 ? "token ditolak" : e.reason || "";
+    log(`koneksi ditutup (code ${e.code}${why ? ", " + why : ""})`, e.code === 1000 ? "sys" : "sys warn");
+    disconnect();
+  };
+}
+
+function disconnect() {
+  ready = false;
+  if (ws && ws.readyState <= WebSocket.OPEN) ws.close();
+  ws = null;
+  stopPlayback();
+  if (micStream) micStream.getTracks().forEach((t) => t.stop());
+  if (micCtx) micCtx.close();
+  if (playCtx) playCtx.close();
+  micStream = micCtx = playCtx = null;
+  setConnected(false); setStatus("Belum terhubung.");
+}
+
+$("connect").onclick = () => (ws ? disconnect() : connect());
+$("mute").onclick = () => {
+  muted = !muted;
+  $("mute").textContent = muted ? "Unmute mic" : "Mute mic";
+  $("mute").setAttribute("aria-pressed", String(muted));
+};
+$("interrupt").onclick = () => { stopPlayback(); ws.send(JSON.stringify({ type: "interrupt" })); };
+$("ask").onclick = () => { lastVoice = performance.now(); awaitingReply = true; ws.send(JSON.stringify({ type: "text_input", text: $("say").value })); };
+$("speak").onclick = () => { awaitingReply = false; ws.send(JSON.stringify({ type: "speak", text: $("say").value })); };
+$("clear").onclick = () => { stopPlayback(); ws.send(JSON.stringify({ type: "clear_context" })); log("konteks dihapus (pengunjung baru)", "sys"); };
+</script>
+</body>
+</html>
