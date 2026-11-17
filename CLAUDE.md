@@ -227,7 +227,18 @@ Open work, in order:
    neighbouring LoRA checkpoints, scale the LoRA below 1.0, train rank 64, and self-distillation
    (generate acronym sentences, keep only samples the judge accepts, add them to the training set
    at no more than about 10% of the data).
-8. Thesis evidence still missing: the same scenarios measured on Gemini Live (latency per
+8. A/B the ASR and LLM the user proposed (2026-11-17), same scenarios, keep only what measures better:
+   Qwen3-ASR-1.7B (supports id/ms/en, vLLM backend, streaming) vs Whisper turbo on real robot-mic
+   recordings (WER, latency with 5 robots, hotword handling); Gemma 4 26B-A4B QAT Q4 (MoE, 4B active)
+   vs Gemma 4 12B in llama.cpp (TTFT, tokens/s with 5 slots, tool-call success, VRAM: about
+   15-16 GB + KV against 11 GB now, so watch the 32 GB card). vLLM only if a non-GGUF 4-bit build
+   exists and it wins at 5 robots; llama.cpp stays otherwise.
+9. Server hygiene: on 2026-11-17 the four raisa-voice containers disappeared (not stopped: removed)
+   while other sessions were logged into the shared account; they were brought back with
+   `docker compose up -d`. If it happens again, check `docker events` and ask the user before
+   assuming. Disk was cleaned the same day (old Qwen3-TTS experiments and local LoRA checkpoints,
+   all checkpoints are on HF), 121 GB free.
+10. Thesis evidence still missing: the same scenarios measured on Gemini Live (latency per
    stage, first audio), a listening test with people (MOS, and A/B against Gemini Live; the pack
    `out/smooth_ab/` is a start), ASR error rate on real robot-microphone recordings, and
    tool-call success rate.
