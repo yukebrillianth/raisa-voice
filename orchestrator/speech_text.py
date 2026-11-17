@@ -10,11 +10,15 @@ Decisions for ambiguous input:
 - "14:30" is always a time.
 - A number that starts with 0 or +62 and has at least 9 digits is a phone number and is
   read digit by digit; other codes are left as numbers.
-- Acronyms (ITS, USB, HDMI, GPU) go to the voice as written: LoRA v2 was trained on raw
-  acronyms and reads them best that way. READ_AS_WORD and capitals longer than 6 letters
-  (BANDUNG) are said as a Title Case word.
+- Acronyms in an Indonesian sentence are written out as Indonesian letter names with the taling
+  e marked and joined by "-" ("WIB" -> "wé-i-bé", "HDMI" -> "ha-dé-ém-i"): one generic rule, no
+  per-acronym list. Measured on the served voice, 8 samples x 2 judges: WIB 8/8 (raw 3/8, "we i be"
+  0/8), HDMI 8/8 (raw 1/8), NIK 8/8 (raw 5/8), the others as good as raw (train/v3/v3_report.md).
+  Exceptions stay raw: EN_ACRONYMS (English letter names by the user's rule: USB, GPU, PDF...).
+  READ_AS_WORD and capitals longer than 6 letters (BANDUNG) are said as a Title Case word.
+  English sentences keep acronyms raw.
 - FIXED overrides where the raw form reads worse (QRIS "kyuris", units kWh/GHz/kHz) hold in
-  both languages; SPELLED acronyms (WIB, WIT) take the sentence language's letter names.
+  both languages.
 - Academic titles are said in full ("Prof. Dr. Ir. Budi, S.T., M.Sc." -> "Profesor Doktor
   Insinyur Budi, Sarjana Teknik, Master of Science"). Their dots are dropped so they give no
   sentence-end pause; a degree after the name keeps one dot when it also ends the sentence.
@@ -22,7 +26,7 @@ Decisions for ambiguous input:
 - A sentence is English when it has English function words and no Indonesian ones; mixed
   sentences ("silakan login pakai email") stay Indonesian. English sentences use "," for
   thousands and "." for decimals.
-The LoRA v2 "hybrid" training transcripts are this output with QRIS, WIB and WIT left raw.
+The LoRA v2 "hybrid" training transcripts are this output with QRIS and every acronym left raw.
 """
 
 import re
@@ -56,8 +60,9 @@ def clock(h: str, m: str) -> str:
     return f"{words(hour)} {words(minute)}"
 
 
+# Indonesian letter names; é marks the taling e, so "we i be" is not read as English "wi ai bi".
 LETTERS = dict(zip("ABCDEFGHIJKLMNOPQRSTUVWXYZ",
-                   "a be ce de e ef ge ha i je ka el em en o pe ki er es te u fe we eks ye zet".split()))
+                   "a bé cé dé é éf gé ha i jé ka él ém én o pé ki ér és té u vé wé éks yé zét".split()))
 # Said the same way in both languages; picked by ear over the raw acronym (LoRA v2 A/B).
 # colok-words read with a k, where "ch" gives the Indonesian c (phoneme judge, 8 samples): colokkan 3/3,
 # dicolokkan 0/8 -> 7/8, colokan 5/8 -> 7/8. "colok" and "mencolok" are right as written (8/8).
@@ -67,8 +72,10 @@ FIXED = {"QRIS": "kyuris", "kWh": "kilowatt hour", "GHz": "gigahertz", "kHz": "k
          # One e was dropped 3/8 written plain, 1/8 as "se-enaknya" (Gemini judge). "seekor" and "keenam" lose an
          # e however they are written (needs training data); "keempat", "keesokan" are right (8/8).
          "seenaknya": "se-enaknya", "Seenaknya": "Se-enaknya"}
-# Spelled with the sentence language's letter names ("we i be"); every other acronym stays raw.
-SPELLED = {"WIB", "WIT"}
+# Said with English letter names in both languages (the user's rule): sent raw, as the LoRA was trained.
+EN_ACRONYMS = set("USB TV VIP NFC GB IT ID QR API GPU CPU SSD AI LED PC PDF".split())
+# English sentences: these are spelled with English letter names ("W I B"); other acronyms stay raw.
+SPELLED_EN = {"WIB", "WIT"}
 ID_WORDS = set("""yang dan di ke dari ini itu untuk dengan saya anda kamu ada tidak akan bisa sudah
     silakan mohon ya adalah pada atau juga kami kita apa mana berapa sampai pukul jam dalam
     selamat terima kasih tolong sedang belum lagi""".split())
@@ -80,7 +87,7 @@ ABBREVIATIONS = {"dll": "dan lain-lain", "dsb": "dan sebagainya", "dst": "dan se
 UNITS = {"km": "kilometer", "m": "meter", "cm": "sentimeter", "mm": "milimeter", "kg": "kilogram",
          "g": "gram", "l": "liter", "ml": "mililiter", "km/jam": "kilometer per jam"}
 # Written in capitals but said as a word, not spelled: robot and team names, words, places, people.
-READ_AS_WORD = set("""RAISA NABBIT MAGE IRIS BIMA LUNA WITA BRIN SIM RAM LAN SKEM EXPO SPARK UNAIR
+READ_AS_WORD = set("""OK RAISA NABBIT MAGE IRIS BIMA LUNA WITA BRIN SIM RAM LAN SKEM EXPO SPARK UNAIR
     HIMATEKTRO TENDON GARUDA NUSANTARA ANDI ARIF BALI BANDUNG DEWI DINA FARHAN JAKARTA JOGJA KARA
     MALANG MEDAN NORA PUTRA RARA RENDI SATRIA SEMARANG SENO SINTA SURABAYA TASYA YOGI ZARA""".split())
 # Before the name (dot always dropped) and after it (one dot kept at a sentence end).
@@ -120,10 +127,12 @@ FRONT = [
 ]
 
 
-def say_capitals(word: str, letters) -> str:
+def say_capitals(word: str, lang: str) -> str:
     if word in READ_AS_WORD or len(word) > 6:
         return word.capitalize()
-    return " ".join(letters(c) for c in word) if word in SPELLED else word
+    if lang == "en":
+        return " ".join(word) if word in SPELLED_EN else word
+    return word if word in EN_ACRONYMS else "-".join(LETTERS[c] for c in word)
 
 
 RULES = [
@@ -142,7 +151,7 @@ RULES = [
     (re.compile(rf"\b{NUM}\b"), lambda m: number(m.group(1), m.group(2))),
     # The dot after "dll." stays: it usually also ends the sentence, which gives the pause.
     (re.compile(r"\b(" + "|".join(ABBREVIATIONS) + r")\b"), lambda m: ABBREVIATIONS[m.group(1)]),
-    (re.compile(r"\b[A-Z]{2,}\b"), lambda m: say_capitals(m.group(0), LETTERS.get)),
+    (re.compile(r"\b[A-Z]{2,}\b"), lambda m: say_capitals(m.group(0), "id")),
 ]
 
 
@@ -177,7 +186,7 @@ EN_RULES = [
     (re.compile(rf"{EN_NUM}\s?%"), lambda m: f"{en_number(m.group(1), m.group(2))} percent"),
     (re.compile(rf"\b{EN_NUM}\s?(km/h|km/jam|km|cm|kg|ml|m|g|l)(?!\w)"), en_quantity),
     (re.compile(rf"\b{EN_NUM}\b"), lambda m: en_number(m.group(1), m.group(2))),
-    (re.compile(r"\b[A-Z]{2,}\b"), lambda m: say_capitals(m.group(0), lambda c: c)),
+    (re.compile(r"\b[A-Z]{2,}\b"), lambda m: say_capitals(m.group(0), "en")),
 ]
 
 
@@ -225,7 +234,7 @@ def word_times(shown: list[str], audio: bytes, sample_rate: int) -> list[float]:
     lang = language(" ".join(shown))
     said = [normalize(w, lang) for w in shown]
     # The pause comes from the spoken form: "Prof." is said "Profesor", with no stop after it.
-    weights = [max(1, len(re.findall(r"[aiueo]+", w.lower()))) + PAUSES.get(w[-1:], 0.0) for w in said]
+    weights = [max(1, len(re.findall(r"[aiueoéè]+", w.lower()))) + PAUSES.get(w[-1:], 0.0) for w in said]
     total, before, times = sum(weights), 0.0, []
     for w in weights:
         times.append(float(start + (end - start) * before / total))

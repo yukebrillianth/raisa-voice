@@ -23,8 +23,12 @@ from pydantic import BaseModel
 
 # LoRA v2: the voice actor's 600 clips with raw-acronym ("hybrid") transcripts, step 280 of 700,
 # plus one calm clip of the same speaker as prompt and reference. Picked by measured speech, see
-# train/README.md. v1 (100 clips) stays in /voices/raisa-lora.
-LORA_DIR = os.environ.get("VOICE_LORA", "/voices/raisa-lora-v2")
+# train/README.md. Served folded into the base weights (train/v3/merge_lora.py -> /voices/raisa-v2-merged,
+# VOICE_LORA=none): same measured voice, TTS first byte 104 -> 63 ms, RTF 0.136 -> 0.085 (train/v3/v3_report.md).
+# The adapter itself: VOICE_BASE=openbmb/VoxCPM2 VOICE_LORA=/voices/raisa-lora-v2; v1 stays in /voices/raisa-lora.
+LORA_DIR = os.environ.get("VOICE_LORA", "none")
+BASE_MODEL = os.environ.get("VOICE_BASE", "/voices/raisa-v2-merged")
+USE_LORA = LORA_DIR not in ("", "none")
 VOICE_WAV = os.environ.get("VOICE_WAV", "/voices/raisa-ref.wav")
 VOICE_TEXT_FILE = os.environ.get("VOICE_TEXT_FILE", "/voices/raisa-ref.txt")
 # Share of the whole GPU this process may use (weights + KV cache); llm and asr share the card.
@@ -92,12 +96,12 @@ async def synth(text: str):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     pool = VoxCPM.from_pretrained(
-        "openbmb/VoxCPM2",
+        BASE_MODEL,
         max_num_seqs=8,
         max_model_len=4096,
         gpu_memory_utilization=GPU_MEMORY_UTILIZATION,
         # Must match the trained adapter (r 32 on LM and DiT attention).
-        lora_config=LoRAConfig(enable_lm=True, enable_dit=True, max_loras=1, max_lora_rank=32),
+        lora_config=LoRAConfig(enable_lm=True, enable_dit=True, max_loras=1, max_lora_rank=32) if USE_LORA else None,
     )
     await pool.wait_for_ready()
     state["pool"] = pool
@@ -105,12 +109,13 @@ async def lifespan(app: FastAPI):
     state["sample_rate"] = (await pool.get_model_info())["output_sample_rate"]
     wav = open(VOICE_WAV, "rb").read()
     prompt_text = open(VOICE_TEXT_FILE, encoding="utf-8").read().strip()
-    await pool.register_lora("raisa", LORA_DIR)
+    if USE_LORA:
+        await pool.register_lora("raisa", LORA_DIR)
     # Prompt (continue the reference recording) + reference latents at temperature 0.7: with the
     # LoRA, sentence onsets match the actor's own recordings (pitch 1.13x the rest vs 1.16x real;
     # 1.51x with the old GEMINI.wav zero-shot clone).
     state["voice"] = {
-        "lora_name": "raisa",
+        **({"lora_name": "raisa"} if USE_LORA else {}),
         "prompt_id": await pool.add_prompt(wav, "wav", prompt_text),
         "ref_audio_latents": await pool.encode_latents(wav, "wav"),
         "temperature": 0.7,

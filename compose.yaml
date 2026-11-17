@@ -28,7 +28,9 @@ services:
       - ${HOME}/.cache/huggingface:/root/.cache/huggingface
       - ./voices:/voices:ro
     environment:
-      VOICE_LORA: ${VOICE_LORA:-/voices/raisa-lora-v2}
+      # LoRA v2 folded into the base weights; adapter instead: VOICE_BASE=openbmb/VoxCPM2 VOICE_LORA=/voices/raisa-lora-v2
+      VOICE_BASE: ${VOICE_BASE:-/voices/raisa-v2-merged}
+      VOICE_LORA: ${VOICE_LORA:-none}
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:8000/health"]
       interval: 5s

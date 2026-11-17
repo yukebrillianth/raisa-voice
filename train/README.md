@@ -50,3 +50,24 @@ every run. Scripts in `v2/`, run on the server from `~/yuke/raisa-voice-train/v2
 The served text is `orchestrator/speech_text.py`: the hybrid transcripts exactly, plus overrides
 picked by ear (QRIS "kyuris", WIB/WIT spelled "we i be"/"we i te", "cholokkan"). Weights,
 checkpoints and reports: HF `v2/` (model) and `v600/` (dataset).
+
+## LoRA v3 (trained, not served) and the merged v2 (served)
+
+Scripts in `v3/`, run on the server from `~/yuke/raisa-voice-train/v3/`; full tables in `v3/v3_report.md`.
+
+1. `v3_prep.py asr|gemini|build`: Whisper check of the new clips (id and en, CER > 0.15 or 2+ words added/missing),
+   Gemini acronym check of the new clips with an acronym, drop of the old clips whose audited acronym reading breaks the
+   user's rules (`acronym_audit_600.json`), verified acronym clips only, holdouts (v2's 30 + 19 acronym clips), manifests
+   in `data_v3/` (1089 clips, 2.2 h), the eval split and the acronym test set (`v3_acro.py`: 2 new carriers per acronym).
+   Transcripts: `v3_text.v3()` (the product normalizer, acronyms raw, no lexicon).
+2. `run_v3.sh`: smoke test, training (`lora_v3.yaml`, 15 epochs x 68 steps, 17 min), every checkpoint through the served
+   synth (`v3_gen.py` imports `tts/server.py`) on holdout + unseen + long sentences (`v2_ana.py measure|asr`,
+   `v3_ana.py fade|hold`), the 3 best into the acronym test (x 4 samples, words x 8) and the phoneme judge
+   (`v3_ana.py phones|acro`). `v3_ana.py gemini` is the optional second judge (laptop).
+   v3 did not beat v2 beyond noise; not served.
+3. `merge_lora.py <base snapshot> <lora> <out>`: W + (alpha/r) B A into a copy of the base weights (CPU, 7 s).
+   `run_merge.sh` (merge_test.py at temperature 0 and 0.7 seed 0, then served A/B/A/B: `v2_ttfab.py` +
+   `bench_robots.sh`) and `run_mergeq.sh` (the merged weights through the same holdout and acronym sets).
+   Served: `VOICE_BASE=/voices/raisa-v2-merged VOICE_LORA=none` (compose default).
+4. `hf_upload_v3.py`: HF `v3/` (adapter of step 612, every checkpoint, scripts, data reports, eval numbers) and
+   `v3/merged/` (the served merged v2).
