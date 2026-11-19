@@ -13,7 +13,9 @@ JV_WORDS = set("""aku kowe sampeyan panjenengan saka karo ning neng ora wis duru
     iki iku kuwi monggo matur nuwun sugeng rawuh enggih nggih mboten""".split())
 EN_WORDS = set("""the is are you your to of and in on at for with please this that it we our my
     will can be have has what where how thank welcome yes here there from by me i an a
-    sure okay ok sorry certainly alright""".split())
+    sure okay ok sorry certainly alright they he she his her them their was were been do does did not but
+    or if than then when who which would should could about into after before because there's it's
+    i'm you're we're let's won lost visited""".split())
 
 
 def function_words(text: str) -> tuple[bool, bool]:

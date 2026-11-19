@@ -207,6 +207,7 @@ EVERYDAY = [
     # Roman numerals after a name; single letters only after a context word
     ("Ratu Elizabeth II dan Paus Yohanes Paulus II datang.", "Ratu Elizabeth kedua dan Paus Yohanes Paulus kedua datang."),
     ("Queen Elizabeth II visited.", "Queen Elizabeth the second visited."),
+    ("Elizabeth II datang hari ini.", "Elizabeth kedua datang hari ini."),
     ("Kelas XI dan Kelas X belajar.", "Kelas sebelas dan Kelas sepuluh belajar."),
     ("Gedung C dan ukuran L, tipe X ya.", "Gedung C dan ukuran L, tipe X ya."),
     # scores are not ranges

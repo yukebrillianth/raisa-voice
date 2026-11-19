@@ -132,7 +132,12 @@ ROMAN_AFTER_NAME = re.compile(r"\b([A-Z][a-z]+)\s+((?:X{0,3})(?:IX|IV|V?I{0,3}))
 def _roman_after_name(m: re.Match, lang: str) -> str:
     numeral = m.group(2)
     n = roman(numeral) if len(numeral) >= 2 else None
-    if n is None:
+    before = m.string[:m.start()].rstrip()
+    # A capitalised first word may be a verb ("Bawa IV ya"); there it needs a capitalised word before it
+    # ("Ratu Elizabeth II"). Mid-sentence, a capitalised word is a name.
+    starts = not before or before[-1] in ".!?:;\n"
+    # II and III are never acronyms; IV, VI, XI could be ("infus IV"), so they need the stronger sign
+    if n is None or (starts and set(numeral) != {"I"} and not re.search(r"[A-Z][a-z]+$", before)):
         return m.group(0)
     if lang == "en":
         return f"{m.group(1)} the {num2words(n, lang='en', to='ordinal')}"
