@@ -8,6 +8,7 @@ import asyncio
 import json
 import os
 import random
+import re
 import secrets
 import time
 from contextlib import asynccontextmanager
@@ -51,9 +52,9 @@ from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
 from pipecat.services.llm_service import FunctionCallParams
 from pipecat.services.openai.llm import OpenAILLMService
 from pipecat.transports.websocket.fastapi import FastAPIWebsocketParams, FastAPIWebsocketTransport
-from pipecat.utils.text.base_text_aggregator import TextType
+from pipecat.utils.text.base_text_aggregator import Aggregation, TextType
 from pipecat.utils.text.pattern_pair_aggregator import MatchAction, PatternMatch, PatternPairAggregator
-from pipecat.utils.text.simple_text_aggregator import SimpleTextAggregator
+from pipecat.utils.text.simple_text_aggregator import SimpleTextAggregator, _LookaheadState
 from pipecat.utils.context.llm_context_summarization import (
     LLMAutoContextSummarizationConfig,
     LLMContextSummaryConfig,
@@ -113,11 +114,31 @@ app = FastAPI(lifespan=lifespan)
 
 
 class TitleDots(SimpleTextAggregator):
-    """Keeps the sentence splitter off academic titles: "Prof. Dr. Ir." is not a sentence."""
+    """Keeps the sentence splitter off dots that end nothing ("Prof. Dr. Ir.", "Jl. Raya No. 5", a list's "5."),
+    and ends a sentence at a line break: a heading or a list item has no full stop of its own, and without
+    this "**1. Universitas Airlangga**" and the line under it went to the voice as one sentence."""
 
     async def _check_sentence_with_lookahead(self, char: str, *, protected_end: int = 0):
+        line = self._line_end(char)
+        if line is not None:
+            return line
         ends = [m.end() for m in TITLE_DOTS.finditer(self._text)]
         return await super()._check_sentence_with_lookahead(char, protected_end=max(protected_end, *ends, 0))
+
+    def _line_end(self, char: str) -> Aggregation | None:
+        """At the first character of a new line, the line before it is a sentence (outside code fences)."""
+        if char.isspace() or "\n" not in self._text:
+            return None
+        cut = self._text.rfind("\n", 0, len(self._text) - 1)
+        if cut < 0 or self._text[cut + 1:-1].strip(" \t") or self._text.count("```") % 2:
+            return None
+        head = self._text[:cut].strip()
+        # "**5.**" alone, a bullet or a rule: nothing to say yet, keep it with the next line
+        if not re.search(r"[^\W\d_]", re.sub(r"^[\s*_#>•\-]*\d{0,2}[.)]?", "", head)):
+            return None
+        self._text = self._text[cut + 1:].lstrip(" \t")
+        self._lookahead_state = _LookaheadState.IDLE
+        return Aggregation(text=head, type=TextType.SENTENCE)
 
 
 class SentenceAggregator(PatternPairAggregator, TitleDots):

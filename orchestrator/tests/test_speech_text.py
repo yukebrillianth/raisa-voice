@@ -173,3 +173,44 @@ def test_unknown_capitals_use_the_model_and_known_ones_the_table():
         pytest.skip("acronym_clf.joblib not built (python acronym_clf.py train)")
     assert acronym_clf.predict("NIK") == ("SPELL_ID", 1.0)
     assert normalize("Kantor BAPENDA buka") == "Kantor Bapenda buka"
+
+
+# Everyday things an LLM writes (everyday.py), found on 2026-11-19.
+EVERYDAY = [
+    ("Kunjungi https://www.its.ac.id/pendaftaran untuk info.", "Kunjungi i-té-és titik a-cé titik i-dé untuk info."),
+    ("Kirim email ke humas@its.ac.id ya.", "Kirim email ke humas et i-té-és titik a-cé titik i-dé ya."),
+    ("Prosesornya 2.5 GHz, versi 3.1.4.", "Prosesornya dua koma lima gigahertz, versi tiga titik satu titik empat."),
+    ("Minum obatnya 3x sehari, layarnya 1920x1080.",
+     "Minum obatnya tiga kali sehari, layarnya seribu sembilan ratus dua puluh kali seribu delapan puluh."),
+    ("Lokasinya di Jl. Raya ITS No. 5, Kec. Sukolilo.", "Lokasinya di Jalan Raya i-té-és nomor lima, Kecamatan Sukolilo."),
+    ("Tersedia jenjang S1, S2, dan D3.", "Tersedia jenjang és satu, és dua, dan dé tiga."),
+    ("Sudah mendukung 5G dan resolusi 4K.", "Sudah mendukung lima ji dan resolusi empat ka."),
+    ("Harganya $20 atau Rp 2.5 juta.", "Harganya dua puluh dolar atau dua koma lima juta rupiah."),
+    ("Musik tahun 1990-an ya.", "Musik tahun seribu sembilan ratus sembilan puluhan ya."),
+    ("Baca Bab IV tentang abad XXI dan Perang Dunia II.",
+     "Baca Bab empat tentang abad dua puluh satu dan Perang Dunia kedua."),
+    ("Sri Sultan Hamengkubuwono X membuka acara.", "Sri Sultan Hamengkubuwono kesepuluh membuka acara."),
+    ("Porsinya 1/2, sisanya 3/4, layanan 24/7.",
+     "Porsinya setengah, sisanya tiga per empat, layanan dua puluh empat jam setiap hari."),
+    ("Aman ± 99% & stabil, latensi ~20 ms.", "Aman kurang lebih sembilan puluh sembilan persen dan stabil, latensi sekitar dua puluh milidetik."),
+    ("Rektor/direktur hadir dan/atau wakilnya.", "Rektor atau direktur hadir dan atau wakilnya."),
+    ("Gedung A — keduanya • buka.", "Gedung A, keduanya, buka."),
+    ("Penelitian Budi dkk.", "Penelitian Budi dan kawan-kawan."),
+    ("Pukul 09.30 mulai, durasinya 1.5 jam.", "Pukul sembilan tiga puluh mulai, durasinya satu koma lima jam."),
+    ("3. Politeknik Elektronika Negeri Surabaya", "tiga, Politeknik Elektronika Negeri Surabaya"),
+    # English sentences
+    ("For example, e.g. GPUs vs. CPUs, etc.", "For example, for example GPUs versus CPUs, et cetera."),
+    ("Visit https://its.ac.id, it costs $1.5 million.", "Visit its dot ac dot id, it costs one point five million dollars."),
+    ("World War II ended in 1945, see Chapter IV.", "World War two ended in nineteen forty-five, see Chapter four."),
+    ("Latency is 20 ms.", "Latency is twenty milliseconds."),
+]
+
+
+@pytest.mark.parametrize("written,spoken", EVERYDAY)
+def test_everyday(written, spoken):
+    assert normalize(written) == spoken
+
+
+def test_roman_numerals_need_a_context_word():
+    assert normalize("Kampus di DIY dan MIX") == normalize("Kampus di DIY dan MIX")   # no crash, no number
+    assert "empat" not in normalize("Bawa IV ya")

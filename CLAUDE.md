@@ -49,6 +49,7 @@ The robot gateway is another repo (`~/IRIS/raisa-chat`, Bun). Per agent it picks
 | `orchestrator/bot.py` | one Pipecat pipeline per robot: VAD, turn detection, LLM, tools, fillers, context summary |
 | `orchestrator/voxcpm_tts.py` | TTS service: sends screen text + word timing, then normalized text to `tts` |
 | `orchestrator/speech_text.py` | written text -> spoken text (numbers, Rp, time, units, names, lexicon) |
+| `orchestrator/everyday.py` | URLs, e-mail, Jl./No./Kec., 2.5 GHz, 3x, S1/D3, 5G, $20, 1/2, Roman numerals, ± & /, e.g./vs.; dots that never end a sentence |
 | `orchestrator/text_tagger.py`, `langid.py` | optional sentence model (int8 ONNX on CPU, `models/text_tagger`): language of each word, reading of each capital; function words otherwise |
 | `orchestrator/acronym_clf.py`, `acronym_data.csv` | model for capitals nobody listed (word / Indonesian letters / English letters); trained in the Dockerfile |
 | `orchestrator/titles.py`, `title_lexicon.json` | titles around names (Prof., Dr. (H.C.), S.T., Sp.PD-KGEH, Ph.D.), lexicon + grammar; built by `train/titles/` |
@@ -92,6 +93,7 @@ Remote copies: GitHub `yukebrillianth/raisa-voice`; HF model `yukebrillianth/rai
 | Served weights = `voices/raisa-v2-merged` (`VOICE_BASE`, `VOICE_LORA=none`); a LoRA change means re-running `train/v3/merge_lora.py` | the adapter path stays as rollback (`VOICE_BASE=openbmb/VoxCPM2 VOICE_LORA=/voices/raisa-lora-v2`); serving a fresh adapter on the merged base would apply it twice |
 | `Leveller` in `tts/server.py` | without it a 20 s sentence ends 4-5 dB quieter than it starts, heard as a muffled voice |
 | Title dots protected in the sentence splitter (`bot.TitleDots`) | "Prof. Dr. Ir." was sent to the TTS as a sentence of its own |
+| A line break ends a sentence (`bot.TitleDots._line_end`); a line with no end mark gets a "." before the TTS | "**1. Universitas Airlangga**" and the line under it went to the voice as one sentence |
 | HDMI spelled "ha-dé-ém-i", not with English letters | measured 8/8 (raw 1/8); a local rewrite moved it to English letters by mistake |
 | One-word English sentence held for the next one (`bot.SentenceAggregator`) | "Sure." alone is said Indonesian "sur" 8/8 |
 
@@ -128,6 +130,8 @@ The user's pronunciation rules (authoritative):
 | 2019-2024, 08.00-10.00, 5-10 | "... sampai ..." ("to" in English, years as "twenty nineteen") |
 | RTX 5090, ISO 9001, ESP32 | "RTX lima puluh sembilan puluh", digits one by one, "ESP tiga puluh dua" |
 | any acronym in an English sentence ("send a PDF file") | raw, never Indonesian letters |
+| its.ac.id, humas@its.ac.id, Jl. Raya No. 5, S1, 5G, 1990-an, Bab IV, Perang Dunia II, 1/2, 24/7 | "i-té-és titik a-cé titik i-dé", "humas et ...", "Jalan Raya nomor lima", "és satu", "lima ji", "...sembilan puluhan", "Bab empat", "Perang Dunia kedua", "setengah", "dua puluh empat jam setiap hari" |
+| 2.5 GHz in an Indonesian sentence, 3x, $20, ± & ~ / | "dua koma lima", "tiga kali", "dua puluh dolar", "kurang lebih", "dan", "sekitar", "atau" |
 | Mbps, psi, dB, USB-C | "em be pe es", "pe es i", "di bi", "yu es bi si" |
 
 What was measured about acronyms:
@@ -222,6 +226,8 @@ As of 2026-11-17 (measurements: `train/v3/v3_report.md`, `train/v3/smooth_report
   The text tagger (`train/tagger/`) is wired in but has no trained model yet: without `models/text_tagger`
   nothing changes. When installed it decides the sentence language only when function words do not (none,
   or both languages), and capital readings only after the user's lists and the labelled table.
+  Line breaks now end sentences (lists and headings were one TTS request), list numbers read "satu, ...";
+  `everyday.py` covers URLs, e-mail, street abbreviations, decimals, Roman numerals, currency, fractions.
 
 Open work, in order:
 

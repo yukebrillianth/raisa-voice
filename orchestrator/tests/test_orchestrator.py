@@ -125,6 +125,17 @@ def test_titles_do_not_split_the_sentence():
     assert run(sentences("Sure. Please follow me. The lift is on your right.")) == [
         "Sure. Please follow me.", "The lift is on your right."]
     assert run(sentences("Okay.")) == ["Okay."]
+    # a line break ends a sentence: headings and list items have no full stop of their own
+    assert run(sentences("**1. Universitas Airlangga (UNAIR)**\n*   Rektor: Prof. Dr. Madyan, S.E., M.Fin. (periode 2025-2030)\n"
+                         "*   Sebelumnya: Prof. Nasih.\n\n### Zona Waktu\nWIB itu UTC+7.")) == [
+        "**1. Universitas Airlangga (UNAIR)**", "*   Rektor: Prof. Dr. Madyan, S.E., M.Fin. (periode 2025-2030)",
+        "*   Sebelumnya: Prof. Nasih.", "### Zona Waktu", "WIB itu UTC+7."]
+    # a list number, a street and "No." are not sentence ends; a lone "**5.**" waits for its line
+    assert run(sentences("**5. Politeknik Perkapalan (PPNS)** ada di Jl. Teknik Kimia No. 1, Surabaya. Silakan.")) == [
+        "**5. Politeknik Perkapalan (PPNS)** ada di Jl. Teknik Kimia No. 1, Surabaya.", "Silakan."]
+    assert run(sentences("**5.**\nPoliteknik Perkapalan.")) == ["**5.**\nPoliteknik Perkapalan."]
+    # no split inside a code fence
+    assert run(sentences("Contoh:\n```\nprint(1)\nprint(2)\n```\nSelesai.")) [-1] == "Selesai."
 
 
 def test_word_times_follow_spoken_length_and_pauses():

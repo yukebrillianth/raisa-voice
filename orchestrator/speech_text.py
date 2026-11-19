@@ -59,6 +59,7 @@ from num2words import num2words
 from pipecat.utils.text.transforms.strip_markdown import strip_markdown
 
 import acronym_clf
+import everyday
 import text_tagger
 from langid import function_words
 
@@ -114,7 +115,7 @@ SPELLED_EN = {"WIB", "WIT"}
 ABBREVIATIONS = {"dll": "dan lain-lain", "dsb": "dan sebagainya", "dst": "dan seterusnya",
                  "tsb": "tersebut", "yg": "yang", "dgn": "dengan", "utk": "untuk"}
 UNITS = {"km": "kilometer", "m": "meter", "cm": "sentimeter", "mm": "milimeter", "kg": "kilogram",
-         "g": "gram", "l": "liter", "ml": "mililiter", "km/jam": "kilometer per jam"}
+         "g": "gram", "l": "liter", "ml": "mililiter", "km/jam": "kilometer per jam", "ms": "milidetik"}
 # Written in capitals but said as a word, not spelled: robot and team names, words, places, people.
 READ_AS_WORD = set("""OK RAISA NABBIT MAGE IRIS BIMA LUNA WITA BRIN SIM RAM LAN SKEM EXPO SPARK UNAIR
     HIMATEKTRO TENDON GARUDA NUSANTARA ANDI ARIF BALI BANDUNG DEWI DINA FARHAN JAKARTA JOGJA KARA
@@ -142,7 +143,10 @@ def _load_tenant_lexicon() -> None:
 _load_tenant_lexicon()
 # Titles around names ("Prof. Dr. Ir. Budi, S.T., Ph.D.") are read by titles.py. TITLE_DOTS is
 # re-exported for bot.py, which keeps the sentence splitter off a title's dots.
-from titles import TITLE_DOTS, say_titles  # noqa: E402,F401
+from titles import TITLE_DOTS as _TITLE_DOTS, say_titles  # noqa: E402
+
+# Dots that never end a sentence, for bot.TitleDots: titles, "Jl."/"No. 5"/"e.g.", list numbers.
+TITLE_DOTS = re.compile(f"{_TITLE_DOTS.pattern}|{everyday.ABBREV_DOTS.pattern}|{everyday.LIST_NUMBER.pattern}")
 
 
 SCALES = r"(?:\s?(ribu|juta|miliar|triliun))?"
@@ -255,7 +259,7 @@ RULES = [
     (re.compile(rf"\bRp\.?\s?{NUM}{SCALES}(?:,-|,00)?"),
      lambda m: " ".join(filter(None, [number(m.group(1), m.group(2)), m.group(3), "rupiah"]))),
     (re.compile(rf"{NUM}\s?%"), lambda m: f"{number(m.group(1), m.group(2))} persen"),
-    (re.compile(rf"\b{NUM}\s?(km/jam|km|cm|mm|kg|ml|m|g|l)\b"),
+    (re.compile(rf"\b{NUM}\s?(km/jam|km|cm|mm|kg|ml|ms|m|g|l)\b"),
      lambda m: f"{number(m.group(1), m.group(2))} {UNITS[m.group(3)]}"),
     (re.compile(r"\bke-(\d+)\b"), lambda m: "ke" + words(int(m.group(1)))),
     (re.compile(rf"\b{NUM}\b"), lambda m: number(m.group(1), m.group(2))),
@@ -263,6 +267,7 @@ RULES = [
     (re.compile(r"\b(" + "|".join(ABBREVIATIONS) + r")\b"), lambda m: ABBREVIATIONS[m.group(1)]),
     (CAPITALS, lambda m: say_capitals_match(m, "id")),
 ]
+RULES = everyday.early("id") + RULES[:-1] + everyday.late("id") + RULES[-1:]
 
 
 def en_words(n: int) -> str:
@@ -276,7 +281,8 @@ def en_number(whole: str, frac: str | None = None) -> str:
 
 EN_NUM = r"(\d{1,3}(?:,\d{3})+|\d+)(?:\.(\d+))?"  # English: 1,500,000.75
 EN_UNITS = {"km": "kilometer", "m": "meter", "cm": "centimeter", "kg": "kilogram", "g": "gram",
-            "l": "liter", "ml": "milliliter", "km/h": "kilometers per hour", "km/jam": "kilometers per hour"}
+            "l": "liter", "ml": "milliliter", "km/h": "kilometers per hour", "km/jam": "kilometers per hour",
+            "ms": "millisecond"}
 
 
 def en_quantity(m: re.Match) -> str:
@@ -327,10 +333,11 @@ EN_RULES = [
      lambda m: en_words(int(m.group(1))) + ("" if m.group(2) == "00" else
                (" oh " if m.group(2)[0] == "0" else " ") + en_words(int(m.group(2))))),
     (re.compile(rf"{EN_NUM}\s?%"), lambda m: f"{en_number(m.group(1), m.group(2))} percent"),
-    (re.compile(rf"\b{EN_NUM}\s?(km/h|km/jam|km|cm|kg|ml|m|g|l)(?!\w)"), en_quantity),
+    (re.compile(rf"\b{EN_NUM}\s?(km/h|km/jam|km|cm|kg|ml|ms|m|g|l)(?!\w)"), en_quantity),
     (re.compile(rf"\b{EN_NUM}\b"), lambda m: en_number(m.group(1), m.group(2))),
     (re.compile(r"\b[A-Z]{2,}\b"), lambda m: say_capitals(m.group(0), "en")),
 ]
+EN_RULES = everyday.early("en") + EN_RULES[:-1] + everyday.late("en") + EN_RULES[-1:]
 
 
 def language_evidence(text: str) -> str | None:

@@ -65,6 +65,9 @@ class VoxCPMTTSService(TTSService):
         lang = language(text, before)
         self._last_lang = (context_id, lang)
         spoken = normalize(text, lang).strip()
+        # A heading or list line has no full stop; the voice was trained on sentences that end with one.
+        if spoken and (spoken[-1].isalnum() or spoken[-1] in ")\"'”"):
+            spoken += "."
         if not spoken:  # emoji only, a table row
             sentence.times = [0.0] * len(sentence.words)
             return
