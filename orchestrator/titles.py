@@ -56,6 +56,9 @@ WORD_BEFORE = re.compile(r"([A-Za-zÀ-ÿ]+)[ \t]+$")
 NAME_AFTER = re.compile(r"[ \t]+(?=[A-Z])")
 SPACES = re.compile(r"[ \t]*")
 HC = re.compile(r"\([ \t]?[Hh]\.?[ \t]?[Cc]\.?[ \t]?\)|[Hh]\.[ \t]?[Cc]\.|HC(?![A-Za-z0-9])")
+# Said where they stand, e.g. "Kol. TNI (Purn.) Ir. Marseno": the dot must not end the sentence either.
+PARENS = {"Purn": ("Purnawirawan", "Retired"), "Ret": ("Purnawirawan", "Retired")}
+PAREN = re.compile(r"\([ \t]?(" + "|".join(PARENS) + r")\.?[ \t]?\)")
 KONSULTAN_K = re.compile(r"[ \t]?\([ \t]?K[ \t]?\)")
 UNKNOWN = re.compile(r"(?:[A-Z][A-Za-z]{0,5}\.){1,4}(?:[A-Z][A-Za-z]{0,5}(?![A-Za-z0-9]))?")
 # Forms of address after which "H." is Haji, not an initial.
@@ -101,6 +104,7 @@ class Title:
     initial: bool = False
     dot_required: bool = False
     chain_only_dotless: bool = False
+    chain_only: bool = False
 
     def say(self, lang: str, mode: str = "expand") -> str:
         if mode == "short" and self.kind != "pre":
@@ -129,18 +133,34 @@ def trie_pattern(sequences: list[list[str]]) -> str:
     return emit(root, True)
 
 
+EN_HINTS = {"Sc", "Eng", "Ph", "App", "Tech", "Ed", "Phil", "Arch", "Agr", "Com", "Bus", "Admin"}
+
+
+@dataclass(frozen=True)
+class _Spelled:
+    """A known title followed by parts nobody listed: say the first, spell the rest."""
+    known: Title
+    rest: str
+    letters: str
+    kind: str = "post"
+
+    def say(self, lang: str, mode: str = "expand") -> str:
+        return f"{self.known.say(lang, mode)} {short_form(self.rest, self.letters, lang)}"
+
+
 @dataclass
 class _Hit:
     start: int
     end: int
     raw: str
-    title: Title | None
+    title: Title | _Spelled | None
     extra: Title | None = None     # consultant part of a specialist
     consultant: bool = False       # "(K)"
+    letters: str = "id"            # alphabet for spelling an unknown degree
 
     def say(self, lang: str, mode: str) -> str:
         if self.title is None:     # unknown degree: spelled out
-            return short_form(self.raw, "id", lang)
+            return short_form(self.raw, self.letters, lang)
         if mode == "short":
             return short_form(self.raw, "id", lang) if (self.extra or self.consultant) else self.title.say(lang, mode)
         text = self.title.say(lang, mode)
@@ -184,7 +204,7 @@ class TitleReader:
         self.post_at = re.compile(rf"(?:{post_trie}){END}")
         self.kons_at = re.compile(rf"-[ \t]?K[ \t]?(?:{kons_trie}){END}") if self.konsultan else None
         # Dots that never end a sentence: a title's, "(H.C.)", and one glued to the next letter.
-        self.dots = re.compile(rf"(?<![\w.])(?:{pre_trie}|{post_trie}){END}|{HC.pattern}|\.(?=[A-Za-z])")
+        self.dots = re.compile(rf"(?<![\w.])(?:{pre_trie}|{post_trie}){END}|{HC.pattern}|{PAREN.pattern}|\.(?=[A-Za-z])")
 
     @staticmethod
     def _entry(e: dict, kind: str, explicit: bool = True) -> Title:
@@ -194,7 +214,7 @@ class TitleReader:
             short_id=e.get("short") or short_form(surface, letters, "id"),
             short_en=e.get("short_en") or short_form(surface, letters, "en"),
             explicit=explicit, initial=e.get("initial", False), dot_required=e.get("dot_required", False),
-            chain_only_dotless=e.get("chain_only_dotless", False),
+            chain_only_dotless=e.get("chain_only_dotless", False), chain_only=e.get("chain_only", False),
         )
 
     def _add(self, store: dict[str, Title], t: Title) -> None:
@@ -233,7 +253,7 @@ class TitleReader:
             while True:
                 mm = self.pre_at.match(text, pos)
                 t = self.pre.get(key(mm.group())) if mm else None
-                if t and t.dot_required and not mm.group().endswith("."):
+                if t and ((t.dot_required and not mm.group().endswith(".")) or (t.chain_only and not chain)):
                     t = None
                 if t is None and chain:
                     mm = HC.match(text, pos)
@@ -285,8 +305,21 @@ class TitleReader:
             known_level = any(key(".".join(words[:n])) in self.level_keys for n in (1, 2))
             if len(words) >= 2 and (in_chain or known_level) and not (u.end() < len(text) and text[u.end()].isalnum()):
                 self._log_unknown(u.group())
-                return _Hit(pos, u.end(), u.group(), None)
+                return self._partly_known(text, pos, u.end())
         return None
+
+    def _partly_known(self, text: str, pos: int, end: int) -> _Hit:
+        """'M.Sc.ES.': read the 'M.Sc.' we know, spell 'ES' in the same alphabet ('Master of Science i-es')."""
+        raw = text[pos:end]
+        words = WORDS.findall(raw)
+        for n in range(len(words) - 1, 0, -1):
+            t = self.post.get("".join(words[:n]))
+            if t and t.explicit:
+                rest = ".".join(words[n:]) + "."
+                letters = "en" if t.short_id == short_form(t.surface, "en", "id") else "id"
+                return _Hit(pos, end, raw, _Spelled(t, rest, letters))
+        english = any(w in EN_HINTS for w in words)
+        return _Hit(pos, end, raw, None, letters="en" if english else "id")
 
     def _post(self, text: str, lang: str, mode: str) -> list[tuple[int, int, str]]:
         anchors = sorted([(m.start(), m.end(), False) for m in COMMA.finditer(text)]
@@ -356,6 +389,7 @@ class TitleReader:
         # Both passes read the original text, so neither rereads what the other wrote.
         post = self._post(text, lang, mode)
         edits = post + self._pre(text, lang, [(a, b) for a, b, _ in post])
+        edits += [(m.start(), m.end(), "(" + PARENS[m.group(1)][lang == "en"] + ")") for m in PAREN.finditer(text)]
         for start, end, new in sorted(edits, reverse=True):
             text = text[:start] + new + text[end:]
         return text

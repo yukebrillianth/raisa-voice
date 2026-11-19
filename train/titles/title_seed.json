@@ -7,218 +7,1085 @@
     "post/pre: explicit titles. letters = which alphabet the short reading uses (id/en).",
     "short = override for TITLE_POST_MODE=short. id = null means there is no good full reading: always short.",
     "chain_only_dotless: dotless form only counts after another title (CA = California, MD = Maryland).",
-    "initial: a one-letter pre title (H.) that could be a name initial; dot_required: no dotless form."
+    "initial: a one-letter pre title (H.) that could be a name initial; dot_required: no dotless form.",
+    "chain_only: a pre title that only counts after another pre title (R. = Raden in 'Prof. Ir. R. Soemadijo', an initial elsewhere)."
   ],
   "levels": [
-    {"code": "S", "id": "Sarjana", "en": "Bachelor of", "table": "field"},
-    {"code": "S.Tr", "id": "Sarjana Terapan", "en": "Bachelor of Applied", "table": "field"},
-    {"code": "M", "id": "Magister", "en": "Master of", "table": "field"},
-    {"code": "M.Tr", "id": "Magister Terapan", "en": "Master of Applied", "table": "field"},
-    {"code": "A.Md", "id": "Ahli Madya", "en": "Associate Degree in", "table": "field"},
-    {"code": "A.Ma", "id": "Ahli Muda", "en": "Diploma in", "table": "field"},
-    {"code": "A.P", "id": "Ahli Pratama", "en": "Diploma in", "table": "field"},
-    {"code": "Sp", "id": "Spesialis", "en": "Specialist in", "table": "spesialis"}
+    {
+      "code": "S",
+      "id": "Sarjana",
+      "en": "Bachelor of",
+      "table": "field"
+    },
+    {
+      "code": "S.Tr",
+      "id": "Sarjana Terapan",
+      "en": "Bachelor of Applied",
+      "table": "field"
+    },
+    {
+      "code": "M",
+      "id": "Magister",
+      "en": "Master of",
+      "table": "field"
+    },
+    {
+      "code": "M.Tr",
+      "id": "Magister Terapan",
+      "en": "Master of Applied",
+      "table": "field"
+    },
+    {
+      "code": "A.Md",
+      "id": "Ahli Madya",
+      "en": "Associate Degree in",
+      "table": "field"
+    },
+    {
+      "code": "A.Ma",
+      "id": "Ahli Muda",
+      "en": "Diploma in",
+      "table": "field"
+    },
+    {
+      "code": "A.P",
+      "id": "Ahli Pratama",
+      "en": "Diploma in",
+      "table": "field"
+    },
+    {
+      "code": "Sp",
+      "id": "Spesialis",
+      "en": "Specialist in",
+      "table": "spesialis"
+    }
   ],
   "tables": {
     "field": [
-      {"code": "T", "id": "Teknik", "en": "Engineering"},
-      {"code": "Kom", "id": "Komputer", "en": "Computer Science"},
-      {"code": "Si", "id": "Sains", "en": "Science"},
-      {"code": "E", "id": "Ekonomi", "en": "Economics"},
-      {"code": "H", "id": "Hukum", "en": "Law"},
-      {"code": "Pd", "id": "Pendidikan", "en": "Education"},
-      {"code": "Sos", "id": "Sosial", "en": "Social Sciences"},
-      {"code": "Hum", "id": "Humaniora", "en": "Humanities"},
-      {"code": "S", "id": "Sastra", "en": "Literature"},
-      {"code": "Psi", "id": "Psikologi", "en": "Psychology"},
-      {"code": "Ked", "id": "Kedokteran", "en": "Medicine"},
-      {"code": "KG", "id": "Kedokteran Gigi", "en": "Dentistry"},
-      {"code": "KH", "id": "Kedokteran Hewan", "en": "Veterinary Medicine"},
-      {"code": "Farm", "id": "Farmasi", "en": "Pharmacy"},
-      {"code": "KM", "id": "Kesehatan Masyarakat", "en": "Public Health"},
-      {"code": "Kep", "id": "Keperawatan", "en": "Nursing"},
-      {"code": "Keb", "id": "Kebidanan", "en": "Midwifery"},
-      {"code": "Kes", "id": "Kesehatan", "en": "Health"},
-      {"code": "Gz", "id": "Gizi", "en": "Nutrition"},
-      {"code": "Ak", "id": "Akuntansi", "en": "Accounting"},
-      {"code": "Ds", "id": "Desain", "en": "Design"},
-      {"code": "Sn", "id": "Seni", "en": "Arts"},
-      {"code": "Ars", "id": "Arsitektur", "en": "Architecture"},
-      {"code": "P", "id": "Pertanian", "en": "Agriculture"},
-      {"code": "Pt", "id": "Peternakan", "en": "Animal Husbandry"},
-      {"code": "Pi", "id": "Perikanan", "en": "Fisheries"},
-      {"code": "Hut", "id": "Kehutanan", "en": "Forestry"},
-      {"code": "TP", "id": "Teknologi Pertanian", "en": "Agricultural Technology"},
-      {"code": "Stat", "id": "Statistika", "en": "Statistics"},
-      {"code": "IP", "id": "Ilmu Politik", "en": "Political Science"},
-      {"code": "I.Kom", "id": "Ilmu Komunikasi", "en": "Communication Science"},
-      {"code": "Ag", "id": "Agama", "en": "Religious Studies"},
-      {"code": "Th", "id": "Teologi", "en": "Theology"},
-      {"code": "Fil", "id": "Filsafat", "en": "Philosophy"},
-      {"code": "M", "id": "Manajemen", "en": "Management"},
-      {"code": "Biomed", "id": "Biomedik", "en": "Biomedical Science"},
-      {"code": "AP", "id": "Administrasi Publik", "en": "Public Administration"},
-      {"code": "AB", "id": "Administrasi Bisnis", "en": "Business Administration"},
-      {"code": "Par", "id": "Pariwisata", "en": "Tourism"},
-      {"code": "Ling", "id": "Linguistik", "en": "Linguistics"},
-      {"code": "Han", "id": "Pertahanan", "en": "Defense Studies"},
-      {"code": "Pd.I", "id": "Pendidikan Islam", "en": "Islamic Education"},
-      {"code": "H.I", "id": "Hukum Islam", "en": "Islamic Law"},
-      {"code": "E.I", "id": "Ekonomi Islam", "en": "Islamic Economics"},
-      {"code": "Sos.I", "id": "Sosial Islam", "en": "Islamic Social Studies"},
-      {"code": "Kom.I", "id": "Komunikasi Islam", "en": "Islamic Communication"}
+      {
+        "code": "T",
+        "id": "Teknik",
+        "en": "Engineering"
+      },
+      {
+        "code": "Kom",
+        "id": "Komputer",
+        "en": "Computer Science"
+      },
+      {
+        "code": "Si",
+        "id": "Sains",
+        "en": "Science"
+      },
+      {
+        "code": "E",
+        "id": "Ekonomi",
+        "en": "Economics"
+      },
+      {
+        "code": "H",
+        "id": "Hukum",
+        "en": "Law"
+      },
+      {
+        "code": "Pd",
+        "id": "Pendidikan",
+        "en": "Education"
+      },
+      {
+        "code": "Sos",
+        "id": "Sosial",
+        "en": "Social Sciences"
+      },
+      {
+        "code": "Hum",
+        "id": "Humaniora",
+        "en": "Humanities"
+      },
+      {
+        "code": "S",
+        "id": "Sastra",
+        "en": "Literature"
+      },
+      {
+        "code": "Psi",
+        "id": "Psikologi",
+        "en": "Psychology"
+      },
+      {
+        "code": "Ked",
+        "id": "Kedokteran",
+        "en": "Medicine"
+      },
+      {
+        "code": "KG",
+        "id": "Kedokteran Gigi",
+        "en": "Dentistry"
+      },
+      {
+        "code": "KH",
+        "id": "Kedokteran Hewan",
+        "en": "Veterinary Medicine"
+      },
+      {
+        "code": "Farm",
+        "id": "Farmasi",
+        "en": "Pharmacy"
+      },
+      {
+        "code": "KM",
+        "id": "Kesehatan Masyarakat",
+        "en": "Public Health"
+      },
+      {
+        "code": "Kep",
+        "id": "Keperawatan",
+        "en": "Nursing"
+      },
+      {
+        "code": "Keb",
+        "id": "Kebidanan",
+        "en": "Midwifery"
+      },
+      {
+        "code": "Kes",
+        "id": "Kesehatan",
+        "en": "Health"
+      },
+      {
+        "code": "Gz",
+        "id": "Gizi",
+        "en": "Nutrition"
+      },
+      {
+        "code": "Ak",
+        "id": "Akuntansi",
+        "en": "Accounting"
+      },
+      {
+        "code": "Ds",
+        "id": "Desain",
+        "en": "Design"
+      },
+      {
+        "code": "Sn",
+        "id": "Seni",
+        "en": "Arts"
+      },
+      {
+        "code": "Ars",
+        "id": "Arsitektur",
+        "en": "Architecture"
+      },
+      {
+        "code": "P",
+        "id": "Pertanian",
+        "en": "Agriculture"
+      },
+      {
+        "code": "Pt",
+        "id": "Peternakan",
+        "en": "Animal Husbandry"
+      },
+      {
+        "code": "Pi",
+        "id": "Perikanan",
+        "en": "Fisheries"
+      },
+      {
+        "code": "Hut",
+        "id": "Kehutanan",
+        "en": "Forestry"
+      },
+      {
+        "code": "TP",
+        "id": "Teknologi Pertanian",
+        "en": "Agricultural Technology"
+      },
+      {
+        "code": "Stat",
+        "id": "Statistika",
+        "en": "Statistics"
+      },
+      {
+        "code": "IP",
+        "id": "Ilmu Politik",
+        "en": "Political Science"
+      },
+      {
+        "code": "I.Kom",
+        "id": "Ilmu Komunikasi",
+        "en": "Communication Science"
+      },
+      {
+        "code": "Ag",
+        "id": "Agama",
+        "en": "Religious Studies"
+      },
+      {
+        "code": "Th",
+        "id": "Teologi",
+        "en": "Theology"
+      },
+      {
+        "code": "Fil",
+        "id": "Filsafat",
+        "en": "Philosophy"
+      },
+      {
+        "code": "M",
+        "id": "Manajemen",
+        "en": "Management"
+      },
+      {
+        "code": "Biomed",
+        "id": "Biomedik",
+        "en": "Biomedical Science"
+      },
+      {
+        "code": "AP",
+        "id": "Administrasi Publik",
+        "en": "Public Administration"
+      },
+      {
+        "code": "AB",
+        "id": "Administrasi Bisnis",
+        "en": "Business Administration"
+      },
+      {
+        "code": "Par",
+        "id": "Pariwisata",
+        "en": "Tourism"
+      },
+      {
+        "code": "Ling",
+        "id": "Linguistik",
+        "en": "Linguistics"
+      },
+      {
+        "code": "Han",
+        "id": "Pertahanan",
+        "en": "Defense Studies"
+      },
+      {
+        "code": "Pd.I",
+        "id": "Pendidikan Islam",
+        "en": "Islamic Education"
+      },
+      {
+        "code": "H.I",
+        "id": "Hukum Islam",
+        "en": "Islamic Law"
+      },
+      {
+        "code": "E.I",
+        "id": "Ekonomi Islam",
+        "en": "Islamic Economics"
+      },
+      {
+        "code": "Sos.I",
+        "id": "Sosial Islam",
+        "en": "Islamic Social Studies"
+      },
+      {
+        "code": "Kom.I",
+        "id": "Komunikasi Islam",
+        "en": "Islamic Communication"
+      }
     ],
     "spesialis": [
-      {"code": "PD", "id": "Penyakit Dalam", "en": "Internal Medicine"},
-      {"code": "A", "id": "Anak", "en": "Pediatrics"},
-      {"code": "OG", "id": "Obstetri dan Ginekologi", "en": "Obstetrics and Gynecology"},
-      {"code": "B", "id": "Bedah", "en": "Surgery"},
-      {"code": "BA", "id": "Bedah Anak", "en": "Pediatric Surgery"},
-      {"code": "BS", "id": "Bedah Saraf", "en": "Neurosurgery"},
-      {"code": "BP-RE", "id": "Bedah Plastik Rekonstruksi dan Estetik", "en": "Plastic, Reconstructive and Aesthetic Surgery"},
-      {"code": "BTKV", "id": "Bedah Toraks, Kardiak, dan Vaskular", "en": "Thoracic, Cardiac and Vascular Surgery"},
-      {"code": "U", "id": "Urologi", "en": "Urology"},
-      {"code": "OT", "id": "Ortopedi dan Traumatologi", "en": "Orthopedics and Traumatology"},
-      {"code": "JP", "id": "Jantung dan Pembuluh Darah", "en": "Cardiology and Vascular Medicine"},
-      {"code": "M", "id": "Mata", "en": "Ophthalmology"},
-      {"code": "THT", "id": "Telinga Hidung Tenggorok", "en": "Otorhinolaryngology"},
-      {"code": "THT-KL", "id": "Telinga Hidung Tenggorok Bedah Kepala Leher", "en": "Otorhinolaryngology, Head and Neck Surgery"},
-      {"code": "THT-BKL", "id": "Telinga Hidung Tenggorok Bedah Kepala Leher", "en": "Otorhinolaryngology, Head and Neck Surgery"},
-      {"code": "KK", "id": "Kulit dan Kelamin", "en": "Dermatology and Venereology"},
-      {"code": "DV", "id": "Dermatologi dan Venereologi", "en": "Dermatology and Venereology"},
-      {"code": "DVE", "id": "Dermatologi, Venereologi, dan Estetika", "en": "Dermatology, Venereology and Aesthetics"},
-      {"code": "N", "id": "Neurologi", "en": "Neurology"},
-      {"code": "S", "id": "Saraf", "en": "Neurology"},
-      {"code": "KJ", "id": "Kedokteran Jiwa", "en": "Psychiatry"},
-      {"code": "Rad", "id": "Radiologi", "en": "Radiology"},
-      {"code": "An", "id": "Anestesiologi", "en": "Anesthesiology"},
-      {"code": "An-TI", "id": "Anestesiologi dan Terapi Intensif", "en": "Anesthesiology and Intensive Care"},
-      {"code": "P", "id": "Paru", "en": "Pulmonology"},
-      {"code": "PK", "id": "Patologi Klinik", "en": "Clinical Pathology"},
-      {"code": "PA", "id": "Patologi Anatomi", "en": "Anatomical Pathology"},
-      {"code": "FM", "id": "Forensik dan Medikolegal", "en": "Forensic and Medicolegal Medicine"},
-      {"code": "F", "id": "Forensik", "en": "Forensic Medicine"},
-      {"code": "KFR", "id": "Kedokteran Fisik dan Rehabilitasi", "en": "Physical Medicine and Rehabilitation"},
-      {"code": "GK", "id": "Gizi Klinik", "en": "Clinical Nutrition"},
-      {"code": "MK", "id": "Mikrobiologi Klinik", "en": "Clinical Microbiology"},
-      {"code": "Onk.Rad", "id": "Onkologi Radiasi", "en": "Radiation Oncology"},
-      {"code": "KN", "id": "Kedokteran Nuklir", "en": "Nuclear Medicine"},
-      {"code": "EM", "id": "Kedokteran Emergensi", "en": "Emergency Medicine"},
-      {"code": "KO", "id": "Kedokteran Olahraga", "en": "Sports Medicine"},
-      {"code": "Ok", "id": "Kedokteran Okupasi", "en": "Occupational Medicine"},
-      {"code": "FK", "id": "Farmakologi Klinik", "en": "Clinical Pharmacology"},
-      {"code": "ParK", "id": "Parasitologi Klinik", "en": "Clinical Parasitology"},
-      {"code": "Ort", "id": "Ortodonsia", "en": "Orthodontics"},
-      {"code": "Pros", "id": "Prostodonsia", "en": "Prosthodontics"},
-      {"code": "Perio", "id": "Periodonsia", "en": "Periodontics"},
-      {"code": "KGA", "id": "Kedokteran Gigi Anak", "en": "Pediatric Dentistry"},
-      {"code": "BM", "id": "Bedah Mulut dan Maksilofasial", "en": "Oral and Maxillofacial Surgery"},
-      {"code": "BMM", "id": "Bedah Mulut dan Maksilofasial", "en": "Oral and Maxillofacial Surgery"},
-      {"code": "KG", "id": "Konservasi Gigi", "en": "Conservative Dentistry"},
-      {"code": "PM", "id": "Penyakit Mulut", "en": "Oral Medicine"},
-      {"code": "RKG", "id": "Radiologi Kedokteran Gigi", "en": "Dental Radiology"}
+      {
+        "code": "PD",
+        "id": "Penyakit Dalam",
+        "en": "Internal Medicine"
+      },
+      {
+        "code": "A",
+        "id": "Anak",
+        "en": "Pediatrics"
+      },
+      {
+        "code": "OG",
+        "id": "Obstetri dan Ginekologi",
+        "en": "Obstetrics and Gynecology"
+      },
+      {
+        "code": "B",
+        "id": "Bedah",
+        "en": "Surgery"
+      },
+      {
+        "code": "BA",
+        "id": "Bedah Anak",
+        "en": "Pediatric Surgery"
+      },
+      {
+        "code": "BS",
+        "id": "Bedah Saraf",
+        "en": "Neurosurgery"
+      },
+      {
+        "code": "BP-RE",
+        "id": "Bedah Plastik Rekonstruksi dan Estetik",
+        "en": "Plastic, Reconstructive and Aesthetic Surgery"
+      },
+      {
+        "code": "BTKV",
+        "id": "Bedah Toraks, Kardiak, dan Vaskular",
+        "en": "Thoracic, Cardiac and Vascular Surgery"
+      },
+      {
+        "code": "U",
+        "id": "Urologi",
+        "en": "Urology"
+      },
+      {
+        "code": "OT",
+        "id": "Ortopedi dan Traumatologi",
+        "en": "Orthopedics and Traumatology"
+      },
+      {
+        "code": "JP",
+        "id": "Jantung dan Pembuluh Darah",
+        "en": "Cardiology and Vascular Medicine"
+      },
+      {
+        "code": "M",
+        "id": "Mata",
+        "en": "Ophthalmology"
+      },
+      {
+        "code": "THT",
+        "id": "Telinga Hidung Tenggorok",
+        "en": "Otorhinolaryngology"
+      },
+      {
+        "code": "THT-KL",
+        "id": "Telinga Hidung Tenggorok Bedah Kepala Leher",
+        "en": "Otorhinolaryngology, Head and Neck Surgery"
+      },
+      {
+        "code": "THT-BKL",
+        "id": "Telinga Hidung Tenggorok Bedah Kepala Leher",
+        "en": "Otorhinolaryngology, Head and Neck Surgery"
+      },
+      {
+        "code": "KK",
+        "id": "Kulit dan Kelamin",
+        "en": "Dermatology and Venereology"
+      },
+      {
+        "code": "DV",
+        "id": "Dermatologi dan Venereologi",
+        "en": "Dermatology and Venereology"
+      },
+      {
+        "code": "DVE",
+        "id": "Dermatologi, Venereologi, dan Estetika",
+        "en": "Dermatology, Venereology and Aesthetics"
+      },
+      {
+        "code": "N",
+        "id": "Neurologi",
+        "en": "Neurology"
+      },
+      {
+        "code": "S",
+        "id": "Saraf",
+        "en": "Neurology"
+      },
+      {
+        "code": "KJ",
+        "id": "Kedokteran Jiwa",
+        "en": "Psychiatry"
+      },
+      {
+        "code": "Rad",
+        "id": "Radiologi",
+        "en": "Radiology"
+      },
+      {
+        "code": "An",
+        "id": "Anestesiologi",
+        "en": "Anesthesiology"
+      },
+      {
+        "code": "An-TI",
+        "id": "Anestesiologi dan Terapi Intensif",
+        "en": "Anesthesiology and Intensive Care"
+      },
+      {
+        "code": "P",
+        "id": "Paru",
+        "en": "Pulmonology"
+      },
+      {
+        "code": "PK",
+        "id": "Patologi Klinik",
+        "en": "Clinical Pathology"
+      },
+      {
+        "code": "PA",
+        "id": "Patologi Anatomi",
+        "en": "Anatomical Pathology"
+      },
+      {
+        "code": "FM",
+        "id": "Forensik dan Medikolegal",
+        "en": "Forensic and Medicolegal Medicine"
+      },
+      {
+        "code": "F",
+        "id": "Forensik",
+        "en": "Forensic Medicine"
+      },
+      {
+        "code": "KFR",
+        "id": "Kedokteran Fisik dan Rehabilitasi",
+        "en": "Physical Medicine and Rehabilitation"
+      },
+      {
+        "code": "GK",
+        "id": "Gizi Klinik",
+        "en": "Clinical Nutrition"
+      },
+      {
+        "code": "MK",
+        "id": "Mikrobiologi Klinik",
+        "en": "Clinical Microbiology"
+      },
+      {
+        "code": "Onk.Rad",
+        "id": "Onkologi Radiasi",
+        "en": "Radiation Oncology"
+      },
+      {
+        "code": "KN",
+        "id": "Kedokteran Nuklir",
+        "en": "Nuclear Medicine"
+      },
+      {
+        "code": "EM",
+        "id": "Kedokteran Emergensi",
+        "en": "Emergency Medicine"
+      },
+      {
+        "code": "KO",
+        "id": "Kedokteran Olahraga",
+        "en": "Sports Medicine"
+      },
+      {
+        "code": "Ok",
+        "id": "Kedokteran Okupasi",
+        "en": "Occupational Medicine"
+      },
+      {
+        "code": "FK",
+        "id": "Farmakologi Klinik",
+        "en": "Clinical Pharmacology"
+      },
+      {
+        "code": "ParK",
+        "id": "Parasitologi Klinik",
+        "en": "Clinical Parasitology"
+      },
+      {
+        "code": "Ort",
+        "id": "Ortodonsia",
+        "en": "Orthodontics"
+      },
+      {
+        "code": "Pros",
+        "id": "Prostodonsia",
+        "en": "Prosthodontics"
+      },
+      {
+        "code": "Perio",
+        "id": "Periodonsia",
+        "en": "Periodontics"
+      },
+      {
+        "code": "KGA",
+        "id": "Kedokteran Gigi Anak",
+        "en": "Pediatric Dentistry"
+      },
+      {
+        "code": "BM",
+        "id": "Bedah Mulut dan Maksilofasial",
+        "en": "Oral and Maxillofacial Surgery"
+      },
+      {
+        "code": "BMM",
+        "id": "Bedah Mulut dan Maksilofasial",
+        "en": "Oral and Maxillofacial Surgery"
+      },
+      {
+        "code": "KG",
+        "id": "Konservasi Gigi",
+        "en": "Conservative Dentistry"
+      },
+      {
+        "code": "PM",
+        "id": "Penyakit Mulut",
+        "en": "Oral Medicine"
+      },
+      {
+        "code": "RKG",
+        "id": "Radiologi Kedokteran Gigi",
+        "en": "Dental Radiology"
+      }
     ],
     "konsultan": [
-      {"code": "GEH", "id": "Gastroenterohepatologi", "en": "Gastroenterohepatology"},
-      {"code": "HOM", "id": "Hematologi Onkologi Medik", "en": "Medical Hematology and Oncology"},
-      {"code": "EMD", "id": "Endokrin Metabolik Diabetes", "en": "Endocrinology, Metabolism and Diabetes"},
-      {"code": "GH", "id": "Ginjal Hipertensi", "en": "Nephrology and Hypertension"},
-      {"code": "KV", "id": "Kardiovaskular", "en": "Cardiovascular Medicine"},
-      {"code": "P", "id": "Pulmonologi", "en": "Pulmonology"},
-      {"code": "R", "id": "Reumatologi", "en": "Rheumatology"},
-      {"code": "PTI", "id": "Penyakit Tropik dan Infeksi", "en": "Tropical and Infectious Diseases"},
-      {"code": "AI", "id": "Alergi Imunologi", "en": "Allergy and Immunology"},
-      {"code": "Ger", "id": "Geriatri", "en": "Geriatrics"},
-      {"code": "Psi", "id": "Psikosomatik", "en": "Psychosomatic Medicine"}
+      {
+        "code": "GEH",
+        "id": "Gastroenterohepatologi",
+        "en": "Gastroenterohepatology"
+      },
+      {
+        "code": "HOM",
+        "id": "Hematologi Onkologi Medik",
+        "en": "Medical Hematology and Oncology"
+      },
+      {
+        "code": "EMD",
+        "id": "Endokrin Metabolik Diabetes",
+        "en": "Endocrinology, Metabolism and Diabetes"
+      },
+      {
+        "code": "GH",
+        "id": "Ginjal Hipertensi",
+        "en": "Nephrology and Hypertension"
+      },
+      {
+        "code": "KV",
+        "id": "Kardiovaskular",
+        "en": "Cardiovascular Medicine"
+      },
+      {
+        "code": "P",
+        "id": "Pulmonologi",
+        "en": "Pulmonology"
+      },
+      {
+        "code": "R",
+        "id": "Reumatologi",
+        "en": "Rheumatology"
+      },
+      {
+        "code": "PTI",
+        "id": "Penyakit Tropik dan Infeksi",
+        "en": "Tropical and Infectious Diseases"
+      },
+      {
+        "code": "AI",
+        "id": "Alergi Imunologi",
+        "en": "Allergy and Immunology"
+      },
+      {
+        "code": "Ger",
+        "id": "Geriatri",
+        "en": "Geriatrics"
+      },
+      {
+        "code": "Psi",
+        "id": "Psikosomatik",
+        "en": "Psychosomatic Medicine"
+      }
     ]
   },
   "post": [
-    {"surface": "B.Sc.", "id": "Bachelor of Science", "letters": "en"},
-    {"surface": "B.A.", "id": "Bachelor of Arts", "letters": "en"},
-    {"surface": "B.Eng.", "id": "Bachelor of Engineering", "letters": "en"},
-    {"surface": "B.Tech.", "id": "Bachelor of Technology", "letters": "en"},
-    {"surface": "B.Com.", "id": "Bachelor of Commerce", "letters": "en"},
-    {"surface": "M.Sc.", "id": "Master of Science", "letters": "en"},
-    {"surface": "M.A.", "id": "Master of Arts", "letters": "en", "chain_only_dotless": true},
-    {"surface": "M.Eng.", "id": "Master of Engineering", "letters": "en"},
-    {"surface": "M.Sc.Eng.", "id": "Master of Science in Engineering", "letters": "en"},
-    {"surface": "M.Eng.Sc.", "id": "Master of Engineering Science", "letters": "en"},
-    {"surface": "M.App.Sc.", "id": "Master of Applied Science", "letters": "en"},
-    {"surface": "M.Tech.", "id": "Master of Technology", "letters": "en"},
-    {"surface": "M.Phil.", "id": "Master of Philosophy", "letters": "en"},
-    {"surface": "M.Ed.", "id": "Master of Education", "letters": "en"},
-    {"surface": "M.Arch.", "id": "Master of Architecture", "letters": "en"},
-    {"surface": "M.Agr.", "id": "Master of Agriculture", "letters": "en"},
-    {"surface": "M.Com.", "id": "Master of Commerce", "letters": "en"},
-    {"surface": "M.S.", "id": "Magister Sains", "en": "Master of Science", "letters": "en"},
-    {"surface": "MBA", "id": "Master of Business Administration", "letters": "en"},
-    {"surface": "MPH", "id": "Master of Public Health", "letters": "en"},
-    {"surface": "MPP", "id": "Master of Public Policy", "letters": "en"},
-    {"surface": "LL.B.", "id": "Bachelor of Laws", "letters": "en"},
-    {"surface": "LL.M.", "id": "Master of Laws", "letters": "en"},
-    {"surface": "J.D.", "id": "Juris Doctor", "letters": "en"},
-    {"surface": "M.D.", "id": "Doctor of Medicine", "letters": "en", "chain_only_dotless": true},
-    {"surface": "Ph.D.", "id": "Doctor of Philosophy", "letters": "en"},
-    {"surface": "D.Phil.", "id": "Doctor of Philosophy", "letters": "en"},
-    {"surface": "D.Eng.", "id": "Doctor of Engineering", "letters": "en"},
-    {"surface": "D.Sc.", "id": "Doctor of Science", "letters": "en"},
-    {"surface": "Sc.D.", "id": "Doctor of Science", "letters": "en"},
-    {"surface": "Ed.D.", "id": "Doctor of Education", "letters": "en"},
-    {"surface": "DBA", "id": "Doctor of Business Administration", "letters": "en"},
-    {"surface": "Dipl.-Ing.", "id": "Diplom Ingenieur", "letters": "en", "short": "dipl-ing", "short_en": "Dipl Ing"},
-    {"surface": "DEA", "id": null, "letters": "id"},
-    {"surface": "S.ST.", "id": "Sarjana Sains Terapan", "en": "Bachelor of Applied Science"},
-    {"surface": "S.Si.T.", "id": "Sarjana Sains Terapan", "en": "Bachelor of Applied Science"},
-    {"surface": "Psikolog", "id": "Psikolog", "en": "Psychologist", "short": "Psikolog", "short_en": "Psychologist"},
-    {"surface": "Apt.", "id": "Apoteker", "en": "Pharmacist"},
-    {"surface": "Ak.", "id": "Akuntan", "en": "Accountant"},
-    {"surface": "Ns.", "id": "Ners", "en": "Nurse"},
-    {"surface": "Bd.", "id": "Bidan", "en": "Midwife"},
-    {"surface": "IPU", "id": "Insinyur Profesional Utama", "en": "Insinyur Profesional Utama"},
-    {"surface": "IPM", "id": "Insinyur Profesional Madya", "en": "Insinyur Profesional Madya"},
-    {"surface": "IPP", "id": "Insinyur Profesional Pratama", "en": "Insinyur Profesional Pratama"},
-    {"surface": "ASEAN Eng.", "id": "Asean Engineer", "letters": "en", "short": "Asean Eng", "short_en": "Asean Eng"},
-    {"surface": "APEC Eng.", "id": "Apec Engineer", "letters": "en", "short": "Apec Eng", "short_en": "Apec Eng"},
-    {"surface": "MARS", "id": "Magister Administrasi Rumah Sakit", "en": "Master of Hospital Administration", "short": "Mars", "short_en": "Mars"},
-    {"surface": "CA", "id": "Chartered Accountant", "letters": "en", "chain_only_dotless": true},
-    {"surface": "CPA", "id": "Certified Public Accountant", "letters": "en"},
-    {"surface": "CFA", "id": "Chartered Financial Analyst", "letters": "en"},
-    {"surface": "PMP", "id": "Project Management Professional", "letters": "en"},
-    {"surface": "FINASIM", "id": "Fellow of the Indonesian Society of Internal Medicine", "letters": "en", "short": "Finasim", "short_en": "Finasim"},
-    {"surface": "FIHA", "id": "Fellow of the Indonesian Heart Association", "letters": "en"}
+    {
+      "surface": "B.Sc.",
+      "id": "Bachelor of Science",
+      "letters": "en"
+    },
+    {
+      "surface": "B.A.",
+      "id": "Bachelor of Arts",
+      "letters": "en"
+    },
+    {
+      "surface": "B.Eng.",
+      "id": "Bachelor of Engineering",
+      "letters": "en"
+    },
+    {
+      "surface": "B.Tech.",
+      "id": "Bachelor of Technology",
+      "letters": "en"
+    },
+    {
+      "surface": "B.Com.",
+      "id": "Bachelor of Commerce",
+      "letters": "en"
+    },
+    {
+      "surface": "M.Sc.",
+      "id": "Master of Science",
+      "letters": "en"
+    },
+    {
+      "surface": "M.A.",
+      "id": "Master of Arts",
+      "letters": "en",
+      "chain_only_dotless": true
+    },
+    {
+      "surface": "M.Eng.",
+      "id": "Master of Engineering",
+      "letters": "en"
+    },
+    {
+      "surface": "M.Sc.Eng.",
+      "id": "Master of Science in Engineering",
+      "letters": "en"
+    },
+    {
+      "surface": "M.Eng.Sc.",
+      "id": "Master of Engineering Science",
+      "letters": "en"
+    },
+    {
+      "surface": "M.App.Sc.",
+      "id": "Master of Applied Science",
+      "letters": "en"
+    },
+    {
+      "surface": "M.Tech.",
+      "id": "Master of Technology",
+      "letters": "en"
+    },
+    {
+      "surface": "M.Phil.",
+      "id": "Master of Philosophy",
+      "letters": "en"
+    },
+    {
+      "surface": "M.Ed.",
+      "id": "Master of Education",
+      "letters": "en"
+    },
+    {
+      "surface": "M.Arch.",
+      "id": "Master of Architecture",
+      "letters": "en"
+    },
+    {
+      "surface": "M.Agr.",
+      "id": "Master of Agriculture",
+      "letters": "en"
+    },
+    {
+      "surface": "M.Com.",
+      "id": "Master of Commerce",
+      "letters": "en"
+    },
+    {
+      "surface": "M.S.",
+      "id": "Magister Sains",
+      "en": "Master of Science",
+      "letters": "en"
+    },
+    {
+      "surface": "MBA",
+      "id": "Master of Business Administration",
+      "letters": "en"
+    },
+    {
+      "surface": "MPH",
+      "id": "Master of Public Health",
+      "letters": "en"
+    },
+    {
+      "surface": "MPP",
+      "id": "Master of Public Policy",
+      "letters": "en"
+    },
+    {
+      "surface": "LL.B.",
+      "id": "Bachelor of Laws",
+      "letters": "en"
+    },
+    {
+      "surface": "LL.M.",
+      "id": "Master of Laws",
+      "letters": "en"
+    },
+    {
+      "surface": "J.D.",
+      "id": "Juris Doctor",
+      "letters": "en"
+    },
+    {
+      "surface": "M.D.",
+      "id": "Doctor of Medicine",
+      "letters": "en",
+      "chain_only_dotless": true
+    },
+    {
+      "surface": "Ph.D.",
+      "id": "Doctor of Philosophy",
+      "letters": "en"
+    },
+    {
+      "surface": "D.Phil.",
+      "id": "Doctor of Philosophy",
+      "letters": "en"
+    },
+    {
+      "surface": "D.Eng.",
+      "id": "Doctor of Engineering",
+      "letters": "en"
+    },
+    {
+      "surface": "D.Sc.",
+      "id": "Doctor of Science",
+      "letters": "en"
+    },
+    {
+      "surface": "Sc.D.",
+      "id": "Doctor of Science",
+      "letters": "en"
+    },
+    {
+      "surface": "Ed.D.",
+      "id": "Doctor of Education",
+      "letters": "en"
+    },
+    {
+      "surface": "DBA",
+      "id": "Doctor of Business Administration",
+      "letters": "en"
+    },
+    {
+      "surface": "Dipl.-Ing.",
+      "id": "Diplom Ingenieur",
+      "letters": "en",
+      "short": "dipl-ing",
+      "short_en": "Dipl Ing"
+    },
+    {
+      "surface": "DEA",
+      "id": null,
+      "letters": "id"
+    },
+    {
+      "surface": "S.ST.",
+      "id": "Sarjana Sains Terapan",
+      "en": "Bachelor of Applied Science"
+    },
+    {
+      "surface": "S.Si.T.",
+      "id": "Sarjana Sains Terapan",
+      "en": "Bachelor of Applied Science"
+    },
+    {
+      "surface": "Psikolog",
+      "id": "Psikolog",
+      "en": "Psychologist",
+      "short": "Psikolog",
+      "short_en": "Psychologist"
+    },
+    {
+      "surface": "Apt.",
+      "id": "Apoteker",
+      "en": "Pharmacist"
+    },
+    {
+      "surface": "Ak.",
+      "id": "Akuntan",
+      "en": "Accountant"
+    },
+    {
+      "surface": "Ns.",
+      "id": "Ners",
+      "en": "Nurse"
+    },
+    {
+      "surface": "Bd.",
+      "id": "Bidan",
+      "en": "Midwife"
+    },
+    {
+      "surface": "IPU",
+      "id": "Insinyur Profesional Utama",
+      "en": "Insinyur Profesional Utama"
+    },
+    {
+      "surface": "IPM",
+      "id": "Insinyur Profesional Madya",
+      "en": "Insinyur Profesional Madya"
+    },
+    {
+      "surface": "IPP",
+      "id": "Insinyur Profesional Pratama",
+      "en": "Insinyur Profesional Pratama"
+    },
+    {
+      "surface": "ASEAN Eng.",
+      "id": "Asean Engineer",
+      "letters": "en",
+      "short": "Asean Eng",
+      "short_en": "Asean Eng"
+    },
+    {
+      "surface": "APEC Eng.",
+      "id": "Apec Engineer",
+      "letters": "en",
+      "short": "Apec Eng",
+      "short_en": "Apec Eng"
+    },
+    {
+      "surface": "MARS",
+      "id": "Magister Administrasi Rumah Sakit",
+      "en": "Master of Hospital Administration",
+      "short": "Mars",
+      "short_en": "Mars"
+    },
+    {
+      "surface": "CA",
+      "id": "Chartered Accountant",
+      "letters": "en",
+      "chain_only_dotless": true
+    },
+    {
+      "surface": "CPA",
+      "id": "Certified Public Accountant",
+      "letters": "en"
+    },
+    {
+      "surface": "CFA",
+      "id": "Chartered Financial Analyst",
+      "letters": "en"
+    },
+    {
+      "surface": "PMP",
+      "id": "Project Management Professional",
+      "letters": "en"
+    },
+    {
+      "surface": "FINASIM",
+      "id": "Fellow of the Indonesian Society of Internal Medicine",
+      "letters": "en",
+      "short": "Finasim",
+      "short_en": "Finasim"
+    },
+    {
+      "surface": "FIHA",
+      "id": "Fellow of the Indonesian Heart Association",
+      "letters": "en"
+    }
   ],
   "pre": [
-    {"surface": "Prof.", "id": "Profesor", "en": "Professor"},
-    {"surface": "Dr.", "id": "Doktor", "en": "Doctor"},
-    {"surface": "dr.", "id": "Dokter", "en": "Doctor"},
-    {"surface": "drg.", "id": "Dokter Gigi", "en": "Dentist"},
-    {"surface": "drh.", "id": "Dokter Hewan", "en": "Veterinarian"},
-    {"surface": "Dr.Eng.", "id": "Doktor Engineering", "en": "Doctor"},
-    {"surface": "Dr.-Ing.", "id": "Doktor Ingenieur", "en": "Doctor"},
-    {"surface": "Dr.rer.nat.", "id": "Doktor Rerum Naturalium", "en": "Doctor"},
-    {"surface": "Ir.", "id": "Insinyur", "en": "Engineer"},
-    {"surface": "Drs.", "id": "Doktorandus", "en": "Doctorandus"},
-    {"surface": "Dra.", "id": "Doktoranda", "en": "Doctoranda"},
-    {"surface": "apt.", "id": "Apoteker", "en": "Pharmacist"},
-    {"surface": "Apt.", "id": "Apoteker", "en": "Pharmacist"},
-    {"surface": "Ns.", "id": "Ners", "en": "Nurse"},
-    {"surface": "Bd.", "id": "Bidan", "en": "Midwife"},
-    {"surface": "H.", "id": "Haji", "en": "Haji", "initial": true, "dot_required": true},
-    {"surface": "Hj.", "id": "Hajjah", "en": "Hajjah", "dot_required": true},
-    {"surface": "K.H.", "id": "Kiai Haji", "en": "Kiai Haji"},
-    {"surface": "Ust.", "id": "Ustaz", "en": "Ustaz", "dot_required": true},
-    {"surface": "Ustz.", "id": "Ustazah", "en": "Ustazah", "dot_required": true},
-    {"surface": "Pdt.", "id": "Pendeta", "en": "Reverend"},
-    {"surface": "Rm.", "id": "Romo", "en": "Father", "dot_required": true},
-    {"surface": "Mgr.", "id": "Monsinyur", "en": "Monsignor"},
-    {"surface": "Ny.", "id": "Nyonya", "en": "Missus", "dot_required": true},
-    {"surface": "Tn.", "id": "Tuan", "en": "Mister", "dot_required": true},
-    {"surface": "Sdr.", "id": "Saudara", "en": "Mister", "dot_required": true},
-    {"surface": "Sdri.", "id": "Saudari", "en": "Miss", "dot_required": true},
-    {"surface": "Bpk.", "id": "Bapak", "en": "Mister", "dot_required": true},
-    {"surface": "Yth.", "id": "Yang Terhormat", "en": "Dear", "dot_required": true},
-    {"surface": "Mr.", "id": "Mister", "en": "Mister"},
-    {"surface": "Mrs.", "id": "Missus", "en": "Missus"},
-    {"surface": "Ms.", "id": "Miz", "en": "Miz", "dot_required": true}
+    {
+      "surface": "Prof.",
+      "id": "Profesor",
+      "en": "Professor"
+    },
+    {
+      "surface": "Dr.",
+      "id": "Doktor",
+      "en": "Doctor"
+    },
+    {
+      "surface": "dr.",
+      "id": "Dokter",
+      "en": "Doctor"
+    },
+    {
+      "surface": "drg.",
+      "id": "Dokter Gigi",
+      "en": "Dentist"
+    },
+    {
+      "surface": "drh.",
+      "id": "Dokter Hewan",
+      "en": "Veterinarian"
+    },
+    {
+      "surface": "Dr.Eng.",
+      "id": "Doktor Engineering",
+      "en": "Doctor"
+    },
+    {
+      "surface": "Dr.-Ing.",
+      "id": "Doktor Ingenieur",
+      "en": "Doctor"
+    },
+    {
+      "surface": "Dr.rer.nat.",
+      "id": "Doktor Rerum Naturalium",
+      "en": "Doctor"
+    },
+    {
+      "surface": "Ir.",
+      "id": "Insinyur",
+      "en": "Engineer"
+    },
+    {
+      "surface": "Drs.",
+      "id": "Doktorandus",
+      "en": "Doctorandus"
+    },
+    {
+      "surface": "Dra.",
+      "id": "Doktoranda",
+      "en": "Doctoranda"
+    },
+    {
+      "surface": "apt.",
+      "id": "Apoteker",
+      "en": "Pharmacist"
+    },
+    {
+      "surface": "Apt.",
+      "id": "Apoteker",
+      "en": "Pharmacist"
+    },
+    {
+      "surface": "Ns.",
+      "id": "Ners",
+      "en": "Nurse"
+    },
+    {
+      "surface": "Bd.",
+      "id": "Bidan",
+      "en": "Midwife"
+    },
+    {
+      "surface": "H.",
+      "id": "Haji",
+      "en": "Haji",
+      "initial": true,
+      "dot_required": true
+    },
+    {
+      "surface": "Hj.",
+      "id": "Hajjah",
+      "en": "Hajjah",
+      "dot_required": true
+    },
+    {
+      "surface": "K.H.",
+      "id": "Kiai Haji",
+      "en": "Kiai Haji"
+    },
+    {
+      "surface": "Ust.",
+      "id": "Ustaz",
+      "en": "Ustaz",
+      "dot_required": true
+    },
+    {
+      "surface": "Ustz.",
+      "id": "Ustazah",
+      "en": "Ustazah",
+      "dot_required": true
+    },
+    {
+      "surface": "Pdt.",
+      "id": "Pendeta",
+      "en": "Reverend"
+    },
+    {
+      "surface": "Rm.",
+      "id": "Romo",
+      "en": "Father",
+      "dot_required": true
+    },
+    {
+      "surface": "Mgr.",
+      "id": "Monsinyur",
+      "en": "Monsignor"
+    },
+    {
+      "surface": "Ny.",
+      "id": "Nyonya",
+      "en": "Missus",
+      "dot_required": true
+    },
+    {
+      "surface": "Tn.",
+      "id": "Tuan",
+      "en": "Mister",
+      "dot_required": true
+    },
+    {
+      "surface": "Sdr.",
+      "id": "Saudara",
+      "en": "Mister",
+      "dot_required": true
+    },
+    {
+      "surface": "Sdri.",
+      "id": "Saudari",
+      "en": "Miss",
+      "dot_required": true
+    },
+    {
+      "surface": "Bpk.",
+      "id": "Bapak",
+      "en": "Mister",
+      "dot_required": true
+    },
+    {
+      "surface": "Yth.",
+      "id": "Yang Terhormat",
+      "en": "Dear",
+      "dot_required": true
+    },
+    {
+      "surface": "Mr.",
+      "id": "Mister",
+      "en": "Mister"
+    },
+    {
+      "surface": "Mrs.",
+      "id": "Missus",
+      "en": "Missus"
+    },
+    {
+      "surface": "Ms.",
+      "id": "Miz",
+      "en": "Miz",
+      "dot_required": true
+    },
+    {
+      "surface": "R.",
+      "id": "Raden",
+      "en": "Raden",
+      "dot_required": true,
+      "chain_only": true
+    },
+    {
+      "surface": "Kol.",
+      "id": "Kolonel",
+      "en": "Colonel",
+      "dot_required": true
+    },
+    {
+      "surface": "Jend.",
+      "id": "Jenderal",
+      "en": "General",
+      "dot_required": true
+    },
+    {
+      "surface": "Kapt.",
+      "id": "Kapten",
+      "en": "Captain",
+      "dot_required": true
+    },
+    {
+      "surface": "Pol.",
+      "id": "Polisi",
+      "en": "Police",
+      "dot_required": true
+    },
+    {
+      "surface": "Inf.",
+      "id": "Infanteri",
+      "en": "Infantry",
+      "dot_required": true
+    }
   ]
 }

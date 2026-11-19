@@ -39,6 +39,17 @@ CASES = [
     # religious and forms of address
     ("Bapak H. Agus Salim hadir.", "id", "expand", "Bapak Haji Agus Salim hadir."),
     ("Ceramah oleh K.H. Hasyim.", "id", "expand", "Ceramah oleh Kiai Haji Hasyim."),
+    # from real LLM replies (rectors of ITS): markdown bold leaves "Ph.D.." behind
+    ("adalah Prof. Ir. Bambang Pramujati, S.T., M.Sc.Eng., Ph.D..", "id", "expand",
+     "adalah Profesor Insinyur Bambang Pramujati, Sarjana Teknik, Master of Science in Engineering, Doctor of Philosophy."),
+    ("Prof. Ir. R. Soemadijo (periode 1968-1973)", "id", "expand", "Profesor Insinyur Raden Soemadijo (periode 1968-1973)"),
+    ("Kol. TNI (Purn.) Ir. Marseno Wirjosapoetra", "id", "expand", "Kolonel TNI (Purnawirawan) Insinyur Marseno Wirjosapoetra"),
+    ("Prof. Ir. Joni Hermana, M.Sc.ES., Ph.D. (periode 2015-2019)", "id", "expand",
+     "Profesor Insinyur Joni Hermana, Master of Science i-es, Doctor of Philosophy (periode 2015-2019)"),
+    ("Prof. Dr. Ir. Triyogi Yuwono, DEA. (periode 2011-2015)", "id", "expand",
+     "Profesor Doktor Insinyur Triyogi Yuwono, dé-é-a (periode 2011-2015)"),
+    ("Prof. Ir. Priyo Suprobo, MS., Ph.D. (periode 2007-2011)", "id", "expand",
+     "Profesor Insinyur Priyo Suprobo, Magister Sains, Doctor of Philosophy (periode 2007-2011)"),
     # unknown degree inside a chain: spelled, never invented
     ("Budi, M.Kom., M.Xyz. hadir.", "id", "expand", "Budi, Magister Komputer, ém-éks-yé-zét hadir."),
 ]
@@ -54,6 +65,7 @@ UNTOUCHED = [
     "Baltimore, MD is in the US.",
     "Tim Budi, Ani, dan Sinta menang.",
     "Ukuran S, M, dan L tersedia.",
+    "Bapak R. Soeprapto hadir.",          # R. alone is an initial, Raden only inside a chain
 ]
 
 

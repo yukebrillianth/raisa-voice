@@ -1038,6 +1038,43 @@
    "id": "Miz",
    "en": "Miz",
    "dot_required": true
+  },
+  {
+   "surface": "R.",
+   "id": "Raden",
+   "en": "Raden",
+   "dot_required": true,
+   "chain_only": true
+  },
+  {
+   "surface": "Kol.",
+   "id": "Kolonel",
+   "en": "Colonel",
+   "dot_required": true
+  },
+  {
+   "surface": "Jend.",
+   "id": "Jenderal",
+   "en": "General",
+   "dot_required": true
+  },
+  {
+   "surface": "Kapt.",
+   "id": "Kapten",
+   "en": "Captain",
+   "dot_required": true
+  },
+  {
+   "surface": "Pol.",
+   "id": "Polisi",
+   "en": "Police",
+   "dot_required": true
+  },
+  {
+   "surface": "Inf.",
+   "id": "Infanteri",
+   "en": "Infantry",
+   "dot_required": true
   }
  ]
 }
