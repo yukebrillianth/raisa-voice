@@ -59,6 +59,7 @@ from num2words import num2words
 from pipecat.utils.text.transforms.strip_markdown import strip_markdown
 
 import acronym_clf
+import alnum
 import everyday
 import text_tagger
 from langid import function_words
@@ -141,6 +142,22 @@ def _load_tenant_lexicon() -> None:
 
 
 _load_tenant_lexicon()
+
+
+def _load_respell() -> tuple[dict[str, str], dict[str, str]]:
+    """Spellings the served voice picked itself (train/respell/respell_search.py): measured, so they win
+    over every rule, in Indonesian sentences only. Missing file: nothing changes."""
+    path = Path(os.environ.get("RESPELL_PATH", Path(__file__).resolve().parent / "respell.json"))
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}, {}
+    return data.get("capitals_id", {}), data.get("words_id", {})
+
+
+RESPELL_CAPS, RESPELL_WORDS = _load_respell()
+_RESPELL_WORD = re.compile(r"\b(" + "|".join(map(re.escape, sorted(RESPELL_WORDS, key=len, reverse=True))) + r")\b",
+                           re.I) if RESPELL_WORDS else None
 # Titles around names ("Prof. Dr. Ir. Budi, S.T., Ph.D.") are read by titles.py. TITLE_DOTS is
 # re-exported for bot.py, which keeps the sentence splitter off a title's dots.
 from titles import TITLE_DOTS as _TITLE_DOTS, say_titles  # noqa: E402
@@ -162,7 +179,8 @@ FRONT = [
     (re.compile(r"\b(" + "|".join(map(re.escape, sorted(FIXED, key=len, reverse=True))) + r")\b"),
      lambda m: FIXED[m.group(1)]),
     # "ESP32", "RTX5090": a space first, then the number and the capitals are read as usual.
-    (re.compile(r"\b([A-Z]{2,})(\d{2,})\b"), lambda m: f"{m.group(1)} {m.group(2)}"),
+    (re.compile(r"\b([A-Z]{2,})(\d{2,})\b"),
+     lambda m: m.group(0) if m.group(0) in alnum.TABLE else f"{m.group(1)} {m.group(2)}"),
 ]
 
 
@@ -179,6 +197,8 @@ def say_capitals(word: str, lang: str) -> str:
         return word.capitalize()
     if lang == "en":
         return " ".join(word) if word in SPELLED_EN else word
+    if word in RESPELL_CAPS:
+        return RESPELL_CAPS[word]
     if word in EN_ACRONYMS:
         return spell_en(word) if EN_ACRONYM_STYLE == "spell" else word
     if word in ID_ACRONYMS:
@@ -370,6 +390,7 @@ def language(text: str, before: str | None = None) -> str:
 def normalize(text: str, lang: str | None = None, tagger: bool = True) -> str:
     """Spoken form of one sentence; `lang` ("id"/"en") overrides detection, e.g. for single words.
     `tagger=False` skips the text tagger (word_times normalizes word by word, after the audio)."""
+    alnum.reset()
     tagged = text_tagger.analyse(text) if tagger else None
     _CAPS_HINTS.set(tagged[1] if tagged else {})
     lang = lang or language(text)
@@ -379,7 +400,9 @@ def normalize(text: str, lang: str | None = None, tagger: bool = True) -> str:
     text = say_titles(text, lang)
     for pattern, replace in rules:
         text = pattern.sub(replace, text)
-    return re.sub(r"[ \t]{2,}", " ", text)
+    if _RESPELL_WORD and lang != "en":   # last, so no rule touches a "{S AH0 ...}" respelling
+        text = _RESPELL_WORD.sub(lambda m: RESPELL_WORDS.get(m.group(1).lower(), m.group(1)), text)
+    return alnum.restore(re.sub(r"[ \t]{2,}", " ", text))
 
 
 async def screen_text(text: str) -> str:

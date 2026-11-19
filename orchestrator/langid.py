@@ -20,7 +20,9 @@ EN_WORDS = set("""the is are you your to of and in on at for with please this th
 
 def function_words(text: str) -> tuple[bool, bool]:
     """(has Indonesian or Javanese function words, has English ones)."""
-    tokens = re.findall(r"[a-z]+", text.lower())
+    # Whole words only: the "A" of "A4", "A/B" or "R&D" is not the English article.
+    found = re.findall(r"(?<![\w/&-])[A-Za-z']+(?![\w/&-])", text)
+    tokens = [t.lower() for t in found if len(t) > 1 or t in ("a", "I")]
     return (any(t in ID_WORDS or t in JV_WORDS for t in tokens), any(t in EN_WORDS for t in tokens))
 
 

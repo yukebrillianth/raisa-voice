@@ -16,6 +16,8 @@ from string import ascii_uppercase
 
 from num2words import num2words
 
+import alnum
+
 ID_LETTERS = dict(zip(ascii_uppercase, "a bé cé dé é éf gé ha i jé ka él ém én o pé ki ér és té u vé wé éks yé zét".split()))
 EN_LETTERS = dict(zip(ascii_uppercase, "ei bi si di i ef ji eich ai jei kei el em en ou pi kyu ar es ti yu vi dabelyu eks wai zi".split()))
 # Same switch as speech_text: English letters raw (as served) or respelled ("ji") in Indonesian sentences.
@@ -96,14 +98,6 @@ def _fraction(m: re.Match, lang: str) -> str:
     return special.get((a, b), f"{w(a, lang)} per {w(b, lang)}")
 
 
-def _digit_letter(m: re.Match, lang: str) -> str:
-    """'5G' -> 'five G', '4K' -> 'four K': tech names, said in English like API or GPU, in both languages."""
-    n, letter = int(m.group(1)), m.group(2)
-    if lang != "en" and EN_ACRONYM_STYLE == "spell":
-        letter = EN_LETTERS[letter]
-    return f"{w(n, 'en')} {letter}"
-
-
 ROMAN = re.compile(r"^M{0,3}(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})$")
 VALUES = {"I": 1, "V": 5, "X": 10, "L": 50, "C": 100, "D": 500, "M": 1000}
 
@@ -166,6 +160,8 @@ def early(lang: str) -> list:
         (_URL, lambda m: say_domain(m.group(1), lang)),   # the path is for the screen, not the voice
         (_NUMBER_NO, lambda m: "number " if en else "nomor "),
         (_ABBREV, lambda m: _abbrev(m, lang)),
+        # 5G, PS5, H100, USB 3.0, 802.11ax, R&D, COVID-19: alnum.py (data: alnum_data.csv)
+        *alnum.rules(lang),
         # versions: "3.1.4" -> "tiga titik satu titik empat"
         (re.compile(r"\bv?(\d+)\.(\d+)\.(\d+)\b"),
          lambda m: (" point " if en else " titik ").join(w(int(x), lang) for x in m.groups())),
@@ -180,7 +176,6 @@ def early(lang: str) -> list:
         (re.compile(r"\s&\s"), lambda m: " and " if en else " dan "),
         (re.compile(r"\b(\d+)\s?[x×]\s?(\d+)\b"), lambda m: f"{m.group(1)} {'by' if en else 'kali'} {m.group(2)}"),
         (re.compile(r"\b(\d+)\s?[x×](?=[\s.,;!?)]|$)"), lambda m: f"{m.group(1)} {'times' if en else 'kali'}"),
-        (re.compile(r"\b(\d)([A-Z])\b"), lambda m: _digit_letter(m, lang)),
         (re.compile(rf"\b({ROMAN_EN})\s+([IVXLCDM]{{1,7}})\b"), lambda m: _roman(m, "en", False)) if en else
         (re.compile(rf"\b({ROMAN_ID_ORDER})\s+([IVXLCDM]{{1,7}})\b"), lambda m: _roman(m, lang, True)),
     ]
@@ -192,8 +187,6 @@ def early(lang: str) -> list:
             (ROMAN_AFTER_NAME, lambda m: _roman_after_name(m, lang)),
             # "1990-an" -> "seribu sembilan ratus sembilan puluhan"
             (re.compile(r"\b(\d+)-an\b"), lambda m: w(int(m.group(1)), lang) + "an"),
-            # "S1", "S2", "D3": degree levels
-            (re.compile(r"\b([SD])([1-3])\b"), lambda m: f"{ID_LETTERS[m.group(1)]} {w(int(m.group(2)), lang)}"),
             # "2.5 GHz" written the English way in an Indonesian sentence: a decimal, not 2500.
             (re.compile(r"(?<![\d.,])(\d+)\.(\d)(?![\d.,])"), lambda m: f"{m.group(1)},{m.group(2)}"),
             (re.compile(r"(?<![\d.,])(\d+)\.(\d{2})(?=\s?(?:GHz|MHz|kHz|Hz|GB|MB|TB|%|inci|inch|kg|km|cm|mm|m)\b)"),

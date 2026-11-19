@@ -1,0 +1,60 @@
+token,style,number,id,en,note
+5G,EN,,,,network generation
+4G,EN,,,,
+3G,EN,,,,
+2G,EN,,,,
+4K,EN,,,,resolution
+8K,EN,,,,
+2D,EN,,,,
+3D,EN,,,,
+1080p,EN,pairs,,,video resolution: ten eighty p
+720p,EN,pairs,,,
+1440p,EN,pairs,,,
+2160p,EN,pairs,,,
+480p,EN,pairs,,,
+PS4,EN,,,,PlayStation
+PS5,EN,,,,
+F1,EN,,,,Formula 1
+MP3,EN,,,,
+MP4,EN,,,,
+x86,EN,,,,
+x64,EN,,,,
+ARM64,EN,,arm sixty-four,ARM sixty-four,read as a word
+IPv4,EN,,ai-pi vi four,I P v four,
+IPv6,EN,,ai-pi vi six,I P v six,
+B2B,EN,,,,
+B2C,EN,,,,
+C2C,EN,,,,
+P2P,EN,,,,
+2FA,EN,,,,
+4WD,EN,,,,
+H100,EN,,,,Nvidia GPU
+A100,EN,,,,Nvidia GPU
+H200,EN,,,,
+B200,EN,,,,
+GH200,EN,,,,Grace Hopper
+M1,EN,,,,Apple chip
+M2,EN,,,,
+M3,EN,,,,
+M4,EN,,,,
+i3,EN,,,,Intel Core
+i5,EN,,,,
+i7,EN,,,,
+i9,EN,,,,
+S24,EN,,,,Galaxy
+S25,EN,,,,
+5W1H,ID,,,,"apa, siapa, kapan, ..."
+K3,ID,,,,keselamatan dan kesehatan kerja
+A3,ID,,,,paper size
+A4,ID,,,,paper size
+A5,ID,,,,
+F4,ID,,,,paper size (folio)
+G20,ID,,,,
+G7,ID,,,,
+S1,ID,,,,degree level
+S2,ID,,,,
+S3,ID,,,,
+D1,ID,,,,
+D2,ID,,,,
+D3,ID,,,,
+D4,ID,,,,

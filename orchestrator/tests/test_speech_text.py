@@ -1,3 +1,4 @@
+import re
 import asyncio
 
 import pytest
@@ -184,7 +185,8 @@ EVERYDAY = [
      "Minum obatnya tiga kali sehari, layarnya seribu sembilan ratus dua puluh kali seribu delapan puluh."),
     ("Lokasinya di Jl. Raya ITS No. 5, Kec. Sukolilo.", "Lokasinya di Jalan Raya i-té-és nomor lima, Kecamatan Sukolilo."),
     ("Tersedia jenjang S1, S2, dan D3.", "Tersedia jenjang és satu, és dua, dan dé tiga."),
-    ("Sudah mendukung 5G dan resolusi 4K.", "Sudah mendukung five G dan resolusi four K."),   # English, like GPU
+    # English names written as the voice says them in an Indonesian sentence (a raw "G" is read "gé")
+    ("Sudah mendukung 5G dan resolusi 4K.", "Sudah mendukung five ji dan resolusi four kei."),
     ("Harganya $20 atau Rp 2.5 juta.", "Harganya dua puluh dolar atau dua koma lima juta rupiah."),
     ("Musik tahun 1990-an ya.", "Musik tahun seribu sembilan ratus sembilan puluhan ya."),
     ("Baca Bab IV tentang abad XXI dan Perang Dunia II.",
@@ -203,6 +205,14 @@ EVERYDAY = [
     ("Visit https://its.ac.id, it costs $1.5 million.", "Visit its dot ac dot id, it costs one point five million dollars."),
     ("World War II ended in 1945, see Chapter IV.", "World War two ended in nineteen forty-five, see Chapter four."),
     ("Latency is 20 ms.", "Latency is twenty milliseconds."),
+    # letters and digits in one token (alnum.py, alnum_data.csv)
+    ("Videonya 1080p, chip M2, GPU H100, main PS5.", "Videonya ten eighty pi, chip em two, GPU eich one hundred, main pi-es five."),
+    ("Bagian K3, kertas A4, KTT G20, metode 5W1H.", "Bagian ka tiga, kertas a empat, ka-té-té gé dua puluh, metode lima wé satu ha."),
+    ("Pakai USB 3.0, Wi-Fi 6, HDMI 2.1 dan router 802.11ax.",
+     "Pakai USB three point oh, Wi-Fi six, ha-dé-ém-i dua titik satu dan router eight oh two dot eleven ei-eks."),
+    ("Divisi R&D, uji A/B, pandemi COVID-19, aktifkan 2FA.", "Divisi ar en di, uji ei bi, pandemi Covid sembilan belas, aktifkan two ef-ei."),
+    ("Arsitektur x86 dan ARM64, pakai IPv6.", "Arsitektur eks eighty-six dan arm sixty-four, pakai ai-pi vi six."),
+    ("It supports 5G, PS5 and USB 3.0, see R&D.", "It supports five G, P S five and USB three point oh, see R and D."),
     ("It supports 5G and 4K.", "It supports five G and four K."),
     # Roman numerals after a name; single letters only after a context word
     ("Ratu Elizabeth II dan Paus Yohanes Paulus II datang.", "Ratu Elizabeth kedua dan Paus Yohanes Paulus kedua datang."),
@@ -226,3 +236,12 @@ def test_everyday(written, spoken):
 def test_roman_numerals_need_a_context_word():
     assert normalize("Kampus di DIY dan MIX") == normalize("Kampus di DIY dan MIX")   # no crash, no number
     assert "empat" not in normalize("Bawa IV ya")
+
+
+def test_voice_picked_spellings_win_in_indonesian_only(monkeypatch):
+    import speech_text as st
+    monkeypatch.setattr(st, "RESPELL_CAPS", {"GPU": "{JH IY1}-pi-yu"})
+    monkeypatch.setattr(st, "RESPELL_WORDS", {"seekor": "se'ékor"})
+    monkeypatch.setattr(st, "_RESPELL_WORD", re.compile(r"\b(seekor)\b", re.I))
+    assert st.normalize("GPU-nya ada seekor kucing.") == "{JH IY1}-pi-yu-nya ada se'ékor kucing."
+    assert st.normalize("The GPU is fast.") == "The GPU is fast."

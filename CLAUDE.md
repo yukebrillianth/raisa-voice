@@ -50,6 +50,8 @@ The robot gateway is another repo (`~/IRIS/raisa-chat`, Bun). Per agent it picks
 | `orchestrator/voxcpm_tts.py` | TTS service: sends screen text + word timing, then normalized text to `tts` |
 | `orchestrator/speech_text.py` | written text -> spoken text (numbers, Rp, time, units, names, lexicon) |
 | `orchestrator/everyday.py` | URLs, e-mail, Jl./No./Kec., 2.5 GHz, 3x, S1/D3, 5G, $20, 1/2, Roman numerals, ± & /, e.g./vs.; dots that never end a sentence |
+| `orchestrator/alnum.py`, `alnum_data.csv` | letters and digits in one token (5G, PS5, H100, K3, A4, USB 3.0, 802.11ax, R&D): style per token as data, protected from later rules |
+| `orchestrator/respell.json` (optional) | spellings the served voice picked itself (`train/respell/`), used in Indonesian sentences before every rule |
 | `orchestrator/text_tagger.py`, `langid.py` | optional sentence model (int8 ONNX on CPU, `models/text_tagger`): language of each word, reading of each capital; function words otherwise |
 | `orchestrator/acronym_clf.py`, `acronym_data.csv` | model for capitals nobody listed (word / Indonesian letters / English letters); trained in the Dockerfile |
 | `orchestrator/titles.py`, `title_lexicon.json` | titles around names (Prof., Dr. (H.C.), S.T., Sp.PD-KGEH, Ph.D.), lexicon + grammar; built by `train/titles/` |
@@ -60,6 +62,7 @@ The robot gateway is another repo (`~/IRIS/raisa-chat`, Bun). Per agent it picks
 | `tts/server.py` | nano-vllm-voxcpm, merged voice weights (or base + LoRA) + reference clip, `POST /v1/tts {"text"}` -> PCM stream |
 | `scripts/try_client.py` | fake robot: measures first audio (TTFAB), gaps, barge-in |
 | `scripts/render_traps.py` | renders tricky sentences to `out/traps/` for listening |
+| `train/respell/` | voice-in-the-loop spelling search: candidate forms (Indonesian, English look-alike, CMUdict braces, mixes) rendered by the served TTS and judged by `phones.py` |
 | `train/tagger/` | sentence generator with blind judges, XLM-R fine-tune + ONNX export, report against the rules (`README.md`) |
 | `train/acronyms/` | acronym data generator with blind judges, model numbers (`README.md`) |
 | `train/titles/` | title lexicon: seed, LLM generator with blind judges, build + synthetic evaluation (`README.md`) |
@@ -130,7 +133,7 @@ The user's pronunciation rules (authoritative):
 | 2019-2024, 08.00-10.00, 5-10 | "... sampai ..." ("to" in English, years as "twenty nineteen") |
 | RTX 5090, ISO 9001, ESP32 | "RTX lima puluh sembilan puluh", digits one by one, "ESP tiga puluh dua" |
 | any acronym in an English sentence ("send a PDF file") | raw, never Indonesian letters |
-| its.ac.id, humas@its.ac.id, Jl. Raya No. 5, S1, 5G, 4K, 1990-an, Bab IV, Perang Dunia II, Elizabeth II, 1/2, 24/7 | "i-té-és dot a-cé dot i-dé", "humas et ...", "Jalan Raya nomor lima", "és satu", "five G", "four K", "...sembilan puluhan", "Bab empat", "Perang Dunia kedua", "Elizabeth kedua", "setengah", "dua puluh empat jam setiap hari" |
+| its.ac.id, humas@its.ac.id, Jl. Raya No. 5, S1, 5G, 4K, 1990-an, Bab IV, Perang Dunia II, Elizabeth II, 1/2, 24/7 | "i-té-és dot a-cé dot i-dé", "humas et ...", "Jalan Raya nomor lima", "és satu", "five ji", "four kei" (English letter names written for the voice), "...sembilan puluhan", "Bab empat", "Perang Dunia kedua", "Elizabeth kedua", "setengah", "dua puluh empat jam setiap hari" |
 | menang 3-1, skor 2-2 | "tiga lawan satu" ("three to one"); without a score word it is a range |
 | 2.5 GHz in an Indonesian sentence, 3x, $20, ± & ~ / | "dua koma lima", "tiga kali", "dua puluh dolar", "kurang lebih", "dan", "sekitar", "atau" |
 | Mbps, psi, dB, USB-C | "em be pe es", "pe es i", "di bi", "yu es bi si" |
@@ -229,6 +232,8 @@ As of 2026-11-17 (measurements: `train/v3/v3_report.md`, `train/v3/smooth_report
   or both languages), and capital readings only after the user's lists and the labelled table.
   Line breaks now end sentences (lists and headings were one TTS request), list numbers read "satu, ...";
   `everyday.py` covers URLs, e-mail, street abbreviations, decimals, Roman numerals, currency, fractions.
+  `alnum.py` reads mixed tokens from `alnum_data.csv` (style EN / ID / WORD, numbers as words, pairs or digits).
+  English letter names in Indonesian sentences are written as said ("five ji", "pi-es five"): unmeasured.
 
 Open work, in order:
 
@@ -279,6 +284,12 @@ Open work, in order:
 13. Text tagger: run `train/tagger/generate_sentences.mjs` (about 20k sentences, one strong judge + Gemma),
    train XLM-R base and large, keep both `report.md` files (unseen-capital accuracy against the rules, ms per
    sentence), deploy the better one only if it beats the rules on unseen capitals without costing first sound.
+
+14. Let the voice pick spellings (`train/respell/respell_search.py`, 2026-11-19, not run yet): GPU, GB, API, CPU, HD,
+   PDF, WIT, SKCK, seekor, keenam, about 30 written forms each including CMUdict braces ("{JH IY1} {P IY1} {Y UW1}"),
+   2 carriers x 8 samples through the served TTS, phoneme judge, round 2 mixes the best families letter by letter.
+   Winners (>= 7/8 and 3+ clips over the served form) go to `orchestrator/respell.json`. Then the same search over
+   the unmeasured written forms of `alnum.py` and `everyday.py` ("five ji", "pi-es five", "i-té-és dot ...").
 
 Decisions already made (do not reopen without new evidence):
 
