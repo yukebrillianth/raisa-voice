@@ -291,6 +291,11 @@
         "code": "Kom.I",
         "id": "Komunikasi Islam",
         "en": "Islamic Communication"
+      },
+      {
+        "code": "H.Kes",
+        "id": "Hukum Kesehatan",
+        "en": "Health Law"
       }
     ],
     "spesialis": [
@@ -874,6 +879,18 @@
       "surface": "FIHA",
       "id": "Fellow of the Indonesian Heart Association",
       "letters": "en"
+    },
+    {
+      "surface": "M.Fin.",
+      "id": "Master of Finance",
+      "letters": "en"
+    },
+    {
+      "surface": "Ners",
+      "id": "Ners",
+      "en": "Nurse",
+      "short": "Ners",
+      "short_en": "Nurse"
     }
   ],
   "pre": [

@@ -147,6 +147,8 @@ REPLY_CASES = [
     ("He led ITS from 2019 to 2024.", None, "He led ITS from twenty nineteen to twenty twenty-four."),
     ("The term is 2024-2029.", None, "The term is twenty twenty-four to twenty twenty-nine."),
     ("The RTX 4090 is fast.", None, "The RTX forty ninety is fast."),
+    ("WIB menggunakan UTC+7.", None, "wé-i-bé menggunakan UTC plus tujuh."),
+    ("Jakarta is in UTC+7.", None, "Jakarta is in UTC plus seven."),
     # no function words: the language of the sentence before decides
     ("Specs: 2 GPU, 64 GB RAM, 1 TB SSD.", "en", "Specs: two GPU, sixty-four GB Ram, one TB SSD."),
     ("Specs: 2 GPU, 64 GB RAM, 1 TB SSD.", "id", "Specs: dua GPU, enam puluh empat GB Ram, satu TB SSD."),

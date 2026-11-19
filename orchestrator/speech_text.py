@@ -248,6 +248,7 @@ RULES = [
      + digits(m.group(0)[len(m.group(1)):])),
     (DATE, lambda m: say_date(m, "id")),
     (RANGE, lambda m: say_range(m, "id")),
+    (re.compile(r"\s?\+\s?(?=\d)"), lambda m: " plus "),   # "UTC+7"; phone numbers are read above
     (re.compile(r"\b([01]?\d|2[0-3])[:.]([0-5]\d)\b(?![.,]?\d)"), lambda m: clock(m.group(1), m.group(2))),
     (MODEL_PAIRS, lambda m: f"{m.group(1)} {model_pairs(m.group(2), words)}"),
     (MODEL_DIGITS, lambda m: f"{m.group(1)} {digits(m.group(2))}"),
@@ -315,6 +316,7 @@ EN_RULES = [
      lambda m: f"the {ordinal(m.group(1))} of {month(m.group(2))}" + (f", {year_en(int(m.group(3)))}" if m.group(3) else "")),
     (DATE, lambda m: say_date(m, "en")),
     (RANGE, lambda m: say_range(m, "en")),
+    (re.compile(r"\s?\+\s?(?=\d)"), lambda m: " plus "),
     (re.compile(r"\b(from|between)\s(1[1-9]\d\d|20\d\d)\s(to|and)\s(1[1-9]\d\d|20\d\d)\b", re.I),
      lambda m: f"{m.group(1)} {year_en(int(m.group(2)))} {m.group(3)} {year_en(int(m.group(4)))}"),
     (re.compile(r"\b(in|since|from|until|till|by|year|before|after|between|around|of)\s(1[1-9]\d\d|20\d\d)\b", re.I),

@@ -50,6 +50,13 @@ CASES = [
      "Profesor Doktor Insinyur Triyogi Yuwono, dé-é-a (periode 2011-2015)"),
     ("Prof. Ir. Priyo Suprobo, MS., Ph.D. (periode 2007-2011)", "id", "expand",
      "Profesor Insinyur Priyo Suprobo, Magister Sains, Doctor of Philosophy (periode 2007-2011)"),
+    # from the Surabaya rectors reply (2026-11-19)
+    ("Prof. Dr. Muhammad Madyan, S.E., M.Si., M.Fin. (periode 2025-2030)", "id", "expand",
+     "Profesor Doktor Muhammad Madyan, Sarjana Ekonomi, Magister Sains, Master of Finance (periode 2025-2030)"),
+    ("Dr. Sri Rahayu, S.Tr.Keb., S.Kep., Ners., M.Kes. (periode 2026-2030)", "id", "expand",
+     "Doktor Sri Rahayu, Sarjana Terapan Kebidanan, Sarjana Keperawatan, Ners, Magister Kesehatan (periode 2026-2030)"),
+    ("Lutfi Rusyadi, SKM, M.HKes, M.Sc. (periode 2022-2026)", "id", "expand",
+     "Lutfi Rusyadi, Sarjana Kesehatan Masyarakat, Magister Hukum Kesehatan, Master of Science (periode 2022-2026)"),
     # unknown degree inside a chain: spelled, never invented
     ("Budi, M.Kom., M.Xyz. hadir.", "id", "expand", "Budi, Magister Komputer, ém-éks-yé-zét hadir."),
 ]
@@ -87,8 +94,15 @@ def test_one_word_at_a_time():
 
 
 def test_title_dots_cover_the_whole_chain():
-    found = [m.group() for m in TITLE_DOTS.finditer(BAMBANG)]
-    assert found == ["Prof.", "Dr.", "(H.C.)", "Ir.", "S.T.", "M.Sc.Eng.", "Ph.D.", "IPU", "ASEAN Eng."]
+    """bot.TitleDots keeps the splitter off every dot up to the end of each match."""
+    protected = {m.end() for m in TITLE_DOTS.finditer(BAMBANG)}
+    for title in ["Prof.", "Dr.", "(H.C.)", "Ir.", "S.T.", "M.Sc.Eng.", "Ph.D.", "ASEAN Eng."]:
+        assert BAMBANG.index(title) + len(title) in protected, title
+
+
+def test_unknown_degree_does_not_end_the_sentence():
+    text = "Rektor: Budi, M.Xyz. (periode 2025-2030)"
+    assert any(m.group().endswith("M.Xyz.") for m in TITLE_DOTS.finditer(text))
 
 
 def test_lexicon_has_no_clashing_spellings():

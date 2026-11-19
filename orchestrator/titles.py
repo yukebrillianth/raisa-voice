@@ -204,7 +204,9 @@ class TitleReader:
         self.post_at = re.compile(rf"(?:{post_trie}){END}")
         self.kons_at = re.compile(rf"-[ \t]?K[ \t]?(?:{kons_trie}){END}") if self.konsultan else None
         # Dots that never end a sentence: a title's, "(H.C.)", and one glued to the next letter.
-        self.dots = re.compile(rf"(?<![\w.])(?:{pre_trie}|{post_trie}){END}|{HC.pattern}|{PAREN.pattern}|\.(?=[A-Za-z])")
+        # A dotted degree nobody listed (", M.Fin.") must not end the sentence either.
+        self.dots = re.compile(rf"(?<![\w.])(?:{pre_trie}|{post_trie}){END}|{HC.pattern}|{PAREN.pattern}"
+                               rf"|,[ \t]?(?:[A-Z][A-Za-z]{{0,5}}\.){{2,}}|\.(?=[A-Za-z])")
 
     @staticmethod
     def _entry(e: dict, kind: str, explicit: bool = True) -> Title:
