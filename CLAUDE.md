@@ -49,6 +49,7 @@ The robot gateway is another repo (`~/IRIS/raisa-chat`, Bun). Per agent it picks
 | `orchestrator/bot.py` | one Pipecat pipeline per robot: VAD, turn detection, LLM, tools, fillers, context summary |
 | `orchestrator/voxcpm_tts.py` | TTS service: sends screen text + word timing, then normalized text to `tts` |
 | `orchestrator/speech_text.py` | written text -> spoken text (numbers, Rp, time, units, names, lexicon) |
+| `orchestrator/titles.py`, `title_lexicon.json` | titles around names (Prof., Dr. (H.C.), S.T., Sp.PD-KGEH, Ph.D.), lexicon + grammar; built by `train/titles/` |
 | `orchestrator/asr_stt.py` | posts each speech segment to `asr`, with the agent's vocabulary as hotwords |
 | `orchestrator/protocol.py` | WebSocket messages (mirror Gemini Live) |
 | `orchestrator/tests/` | unit tests; run inside the orchestrator container |
@@ -56,6 +57,7 @@ The robot gateway is another repo (`~/IRIS/raisa-chat`, Bun). Per agent it picks
 | `tts/server.py` | nano-vllm-voxcpm, merged voice weights (or base + LoRA) + reference clip, `POST /v1/tts {"text"}` -> PCM stream |
 | `scripts/try_client.py` | fake robot: measures first audio (TTFAB), gaps, barge-in |
 | `scripts/render_traps.py` | renders tricky sentences to `out/traps/` for listening |
+| `train/titles/` | title lexicon: seed, LLM generator with blind judges, build + synthetic evaluation (`README.md`) |
 | `train/`, `train/v2/`, `train/v3/` | LoRA training, evaluation and merge scripts, `train/README.md`, `train/v3/v3_report.md` |
 | `voices/` (not in git) | `raisa-v2-merged/` (served: v2 folded into the base, 4.6 GB), `raisa-lora/` (v1), `raisa-lora-v2/`, `raisa-ref.wav` + `.txt` |
 
@@ -190,7 +192,8 @@ As of 2026-11-17 (measurements: `train/v3/v3_report.md`, `train/v3/smooth_report
   same voice within noise, TTS first byte 104 -> 63 ms, RTF 0.136 -> 0.085, five-robot first sound unchanged.
   Acronyms: English-letter ones (USB GPU PDF...) raw; other acronyms in Indonesian sentences as "wé-i-bé"
   letter names (generic rule); QRIS -> "kyuris", colokkan/dicolokkan/colokan -> "ch", seenaknya -> "se-enaknya";
-  academic titles spelled out; lead silence cut, `Leveller`, batch warmup in `tts/server.py`; LLM settable by env. Adapters kept: `voices/raisa-lora-v2` (rollback), `voices/raisa-lora` (v1).
+  academic titles spelled out by `titles.py` (2026-11-19: composed degrees, consultant parts, dotless/spaced
+  writing, English names in English sentences; 100% on 20k synthetic cases, not yet listened to on the voice); lead silence cut, `Leveller`, batch warmup in `tts/server.py`; LLM settable by env. Adapters kept: `voices/raisa-lora-v2` (rollback), `voices/raisa-lora` (v1).
 - LoRA v3 (1089 clips: old 600 cleaned, 303 new general incl. 12-28 s paragraphs, 232 verified acronym clips; HF `v3/`)
   was trained and **not served**: holdout equal to v2, acronyms +2..3 points (noise), English and judge-holdout acronyms
   worse. Two of its acronym clips have the generator's pronunciation note read aloud (`acr_009`, `acr_052`).
@@ -242,6 +245,10 @@ Open work, in order:
    stage, first audio), a listening test with people (MOS, and A/B against Gemini Live; the pack
    `out/smooth_ab/` is a start), ASR error rate on real robot-microphone recordings, and
    tool-call success rate.
+11. Titles: render `train/titles/gen_title_cases.py --tts-out` sentences and judge the long English
+   expansions ("Master of Science in Engineering") inside Indonesian sentences, 8 samples each;
+   `TITLE_POST_MODE=short` is unmeasured. Grow the lexicon with `generate_title_dataset.mjs`, grounded on
+   Permendikbudristek 6/2022 (59/2018 is revoked) and rector decrees.
 
 Decisions already made (do not reopen without new evidence):
 

@@ -23,6 +23,8 @@ Decisions for ambiguous input:
   Insinyur Budi, Sarjana Teknik, Master of Science"). Their dots are dropped so they give no
   sentence-end pause; a degree after the name keeps one dot when it also ends the sentence.
   "Dr." is Doktor and "dr." is Dokter. TITLE_DOTS keeps the sentence splitter off them (bot.py).
+  titles.py reads them from a lexicon plus a grammar (composed S./M./A.Md./Sp. degrees, consultant
+  parts, sloppy writing, English names in English sentences); see train/titles/README.md.
 - A sentence is English when it has English function words and no Indonesian ones; mixed
   sentences ("silakan login pakai email") stay Indonesian. English sentences use "," for
   thousands and "." for decimals.
@@ -90,29 +92,9 @@ UNITS = {"km": "kilometer", "m": "meter", "cm": "sentimeter", "mm": "milimeter",
 READ_AS_WORD = set("""OK RAISA NABBIT MAGE IRIS BIMA LUNA WITA BRIN SIM RAM LAN SKEM EXPO SPARK UNAIR
     HIMATEKTRO TENDON GARUDA NUSANTARA ANDI ARIF BALI BANDUNG DEWI DINA FARHAN JAKARTA JOGJA KARA
     MALANG MEDAN NORA PUTRA RARA RENDI SATRIA SEMARANG SENO SINTA SURABAYA TASYA YOGI ZARA""".split())
-# Before the name (dot always dropped) and after it (one dot kept at a sentence end).
-TITLES_BEFORE = {"Prof.": "Profesor", "Dr. (HC)": "Doktor Honoris Causa", "Dr.(HC)": "Doktor Honoris Causa",
-                 "Dr. Eng.": "Doktor Engineering", "Dr.Eng.": "Doktor Engineering", "Dr.": "Doktor", "dr.": "Dokter",
-                 "Drs.": "Doktorandus", "Dra.": "Doktoranda", "Ir.": "Insinyur"}
-TITLES_AFTER = {"S.T.": "Sarjana Teknik", "S.Kom.": "Sarjana Komputer", "S.Si.": "Sarjana Sains",
-                "S.E.": "Sarjana Ekonomi", "S.H.": "Sarjana Hukum", "S.Pd.": "Sarjana Pendidikan",
-                "S.K.M.": "Sarjana Kesehatan Masyarakat", "S.Sos.": "Sarjana Sosial",
-                "S.Tr.T.": "Sarjana Terapan Teknik", "M.T.": "Magister Teknik", "M.Kom.": "Magister Komputer",
-                "M.M.": "Magister Manajemen", "M.Pd.": "Magister Pendidikan", "M.Sc.": "Master of Science",
-                "M.Sc.Eng.": "Master of Science in Engineering", "M.Eng.": "Master of Engineering",
-                "Ph.D.": "Doctor of Philosophy", "ASEAN Eng.": "Asean Engineer"}
-TITLES = {**TITLES_BEFORE, **TITLES_AFTER}
-# Longest first, so "M.Sc.Eng." is not read as "M.Sc." and "Dr. (HC)" not as "Dr.".
-TITLE = re.compile(r"(?<![\w.])(" + "|".join(map(re.escape, sorted(TITLES, key=len, reverse=True))) + r")(?!\w)")
-# Dots that never end a sentence: a title's, and one glued to the next letter ("S.Tr.T" while it streams in).
-TITLE_DOTS = re.compile(TITLE.pattern + r"|\.(?=[A-Za-z])")
-
-
-def say_title(m: re.Match) -> str:
-    title, rest = m.group(1), m.string[m.end():]
-    # "..., M.Sc." at the end, or before a new capitalised sentence: that dot is also the full stop.
-    ends = title in TITLES_AFTER and re.match(r"\s*$|\s+[A-Z]", rest) and not TITLE.match(rest.lstrip())
-    return TITLES[title] + ("." if ends else "")
+# Titles around names ("Prof. Dr. Ir. Budi, S.T., Ph.D.") are read by titles.py. TITLE_DOTS is
+# re-exported for bot.py, which keeps the sentence splitter off a title's dots.
+from titles import TITLE_DOTS, say_titles  # noqa: E402,F401
 
 
 SCALES = r"(?:\s?(ribu|juta|miliar|triliun))?"
@@ -123,7 +105,6 @@ FRONT = [
     (re.compile(r"^\s*\|.*\|\s*$\n?", re.M), lambda m: ""),
     (re.compile(r"[\U0001F000-\U0001FAFF☀-➿️‍]"), lambda m: ""),
     (re.compile(r"\b(" + "|".join(FIXED) + r")\b"), lambda m: FIXED[m.group(1)]),
-    (TITLE, say_title),
 ]
 
 
@@ -198,8 +179,12 @@ def language(text: str) -> str:
 
 def normalize(text: str, lang: str | None = None) -> str:
     """Spoken form of one sentence; `lang` ("id"/"en") overrides detection, e.g. for single words."""
-    rules = EN_RULES if (lang or language(text)) == "en" else RULES
-    for pattern, replace in FRONT + rules:
+    lang = lang or language(text)
+    rules = EN_RULES if lang == "en" else RULES
+    for pattern, replace in FRONT:
+        text = pattern.sub(replace, text)
+    text = say_titles(text, lang)
+    for pattern, replace in rules:
         text = pattern.sub(replace, text)
     return text
 

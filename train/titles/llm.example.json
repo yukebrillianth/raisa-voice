@@ -1,0 +1,7 @@
+{
+  "generator": {"baseUrl": "https://generativelanguage.googleapis.com/v1beta/openai", "apiKey": "$GEMINI_API_KEY", "model": "gemini-4-carbon"},
+  "judges": [
+    {"name": "carbon", "baseUrl": "https://generativelanguage.googleapis.com/v1beta/openai", "apiKey": "$GEMINI_API_KEY", "model": "gemini-4-carbon"},
+    {"name": "gemma", "baseUrl": "http://localhost:8080/v1", "apiKey": "local", "model": "gemma-4-12b"}
+  ]
+}

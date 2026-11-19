@@ -1,0 +1,83 @@
+import pytest
+
+from titles import READER, TITLE_DOTS, say_titles
+
+BAMBANG = "Prof. Dr. (H.C.) Ir. Bambang Pramujati, S.T., M.Sc.Eng., Ph.D., IPU, ASEAN Eng."
+
+CASES = [
+    # the full chain, three modes, Indonesian and English
+    (BAMBANG, "id", "expand",
+     "Profesor Doktor Honoris Causa Insinyur Bambang Pramujati, Sarjana Teknik, Master of Science in Engineering, "
+     "Doctor of Philosophy, Insinyur Profesional Utama, Asean Engineer."),
+    (BAMBANG, "id", "short",
+     "Profesor Doktor Honoris Causa Insinyur Bambang Pramujati, és-té, em-es-si-eng, pi-eich-di, i-pé-u, Asean Eng."),
+    (BAMBANG, "id", "drop", "Profesor Doktor Honoris Causa Insinyur Bambang Pramujati."),
+    ("Please welcome " + BAMBANG, "en", "expand",
+     "Please welcome Professor Doctor Honoris Causa Engineer Bambang Pramujati, Bachelor of Engineering, "
+     "Master of Science in Engineering, Doctor of Philosophy, Insinyur Profesional Utama, Asean Engineer."),
+    # code-switched sentences are read as Indonesian; English degrees stay English
+    ("Next speaker kita Dr. Rina, M.Kom., Ph.D., beliau expert AI.", "id", "expand",
+     "Next speaker kita Doktor Rina, Magister Komputer, Doctor of Philosophy, beliau expert AI."),
+    # sloppy writing
+    ("Budi, ST, MT hadir.", "id", "expand", "Budi, Sarjana Teknik, Magister Teknik hadir."),
+    ("Budi, S. Kom., M. Kom hadir.", "id", "expand", "Budi, Sarjana Komputer, Magister Komputer hadir."),
+    ("Dr Budi, PhD hadir.", "id", "expand", "Doktor Budi, Doctor of Philosophy hadir."),
+    ("Budi S.T. hadir.", "id", "expand", "Budi Sarjana Teknik hadir."),
+    # the sentence-end dot
+    ("Dosennya Ani, S.Kom. Beliau ramah.", "id", "expand", "Dosennya Ani, Sarjana Komputer. Beliau ramah."),
+    ("Dosennya Ani, S.Kom. dari ITS.", "id", "expand", "Dosennya Ani, Sarjana Komputer dari ITS."),
+    # medicine
+    ("dr. Ani, Sp.PD-KGEH, FINASIM praktik.", "id", "expand",
+     "Dokter Ani, Spesialis Penyakit Dalam Konsultan Gastroenterohepatologi, "
+     "Fellow of the Indonesian Society of Internal Medicine praktik."),
+    ("dr. Ani, Sp.M(K) praktik.", "id", "expand", "Dokter Ani, Spesialis Mata Konsultan praktik."),
+    ("drg. Sinta, Sp.Ort. ada.", "id", "expand", "Dokter Gigi Sinta, Spesialis Ortodonsia ada."),
+    # composed degrees nobody listed one by one
+    ("Wati, A.Md.Kep., S.Tr.Kes. datang.", "id", "expand",
+     "Wati, Ahli Madya Keperawatan, Sarjana Terapan Kesehatan datang."),
+    ("Wati, A.Md.Kep. came.", "en", "expand", "Wati, Associate Degree in Nursing came."),
+    # religious and forms of address
+    ("Bapak H. Agus Salim hadir.", "id", "expand", "Bapak Haji Agus Salim hadir."),
+    ("Ceramah oleh K.H. Hasyim.", "id", "expand", "Ceramah oleh Kiai Haji Hasyim."),
+    # unknown degree inside a chain: spelled, never invented
+    ("Budi, M.Kom., M.Xyz. hadir.", "id", "expand", "Budi, Magister Komputer, ém-éks-yé-zét hadir."),
+]
+
+UNTOUCHED = [
+    "Kampus ITS, UGM, dan UI sudah buka.",
+    "Motor seri ST, MT, dan SE tersedia.",
+    "Bambang H. Santoso hadir hari ini.",
+    "Bapak S.H. Wibowo sudah datang.",
+    "Saya ketemu S. H. Wibowo kemarin.",
+    "Airnya habis. Irigasi di Dr.X.",
+    "The office is in San Jose, CA.",
+    "Baltimore, MD is in the US.",
+    "Tim Budi, Ani, dan Sinta menang.",
+    "Ukuran S, M, dan L tersedia.",
+]
+
+
+@pytest.mark.parametrize("written,lang,mode,spoken", CASES)
+def test_titles(written, lang, mode, spoken):
+    assert say_titles(written, lang, mode) == spoken
+
+
+@pytest.mark.parametrize("written", UNTOUCHED)
+def test_look_alikes_stay(written):
+    lang = "en" if written.startswith(("The", "Baltimore")) else "id"
+    assert say_titles(written, lang, "expand") == written
+
+
+def test_one_word_at_a_time():
+    """word_times() normalizes word by word."""
+    assert say_titles("S.T.,") == "Sarjana Teknik,"
+    assert say_titles("Prof.") == "Profesor"
+
+
+def test_title_dots_cover_the_whole_chain():
+    found = [m.group() for m in TITLE_DOTS.finditer(BAMBANG)]
+    assert found == ["Prof.", "Dr.", "(H.C.)", "Ir.", "S.T.", "M.Sc.Eng.", "Ph.D.", "IPU", "ASEAN Eng."]
+
+
+def test_lexicon_has_no_clashing_spellings():
+    assert READER.collisions == []

@@ -7,3 +7,6 @@ __pycache__/
 # (see README); GEMINI.wav is a clone of a commercial voice, kept out on purpose.
 voices/*
 !voices/.gitkeep
+
+# title lexicon generator config (may hold API keys)
+train/titles/llm.json
