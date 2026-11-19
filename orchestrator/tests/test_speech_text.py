@@ -37,7 +37,7 @@ CASES = [
     ("Tim IRIS dan robot NABBIT di ITS", "Tim Iris dan robot Nabbit di i-té-és"),
     ("Fakultas FTEIC", "Fakultas éf-té-é-i-cé"),
     # emoji
-    ("Halo 😊 selamat datang", "Halo  selamat datang"),
+    ("Halo 😊 selamat datang", "Halo selamat datang"),
     # acronyms go raw to the voice; fixed overrides are the same in both languages
     ("Bayar pakai QRIS ya", "Bayar pakai kyuris ya"),
     ("Kirim file PDF ke email saya", "Kirim file PDF ke email saya"),
@@ -125,3 +125,49 @@ def test_screen_text_strips_markdown_but_keeps_digits():
     shown = asyncio.run(screen_text("**Harga** tiket *Rp150.000*\n| a | b |"))
     assert shown == "Harga tiket Rp150.000"
 
+
+
+# Found by running real LLM replies through bot.SentenceAggregator and normalize() (2026-11-19).
+REPLY_CASES = [
+    ("Beliau menjabat untuk masa jabatan 2024-2029.", None,
+     "Beliau menjabat untuk masa jabatan dua ribu dua puluh empat sampai dua ribu dua puluh sembilan."),
+    ("Buka pukul 08.00-10.00 setiap hari", None, "Buka pukul delapan sampai sepuluh setiap hari"),
+    ("Tunggu 5-10 menit ya", None, "Tunggu lima sampai sepuluh menit ya"),
+    ("Tanggal 19-11-2024 ya", None, "Tanggal sembilan belas November dua ribu dua puluh empat ya"),
+    ("Due on 19/11/2024.", None, "Due on November nineteenth, twenty twenty-four."),
+    ("Berawal dari IKIP Surabaya, UNESA kini menjadi universitas.", None,
+     "Berawal dari Ikip Surabaya, Unesa kini menjadi universitas."),
+    ("UIN Sunan Ampel (UINSA) dan PENS", None, "u-i-én Sunan Ampel (Uinsa) dan Pens"),
+    ("GPU-nya pakai RTX 5090, 32 GB.", None, "GPU-nya pakai RTX lima puluh sembilan puluh, tiga puluh dua GB."),
+    ("Sertifikat ISO 9001 dan modul ESP32", None, "Sertifikat i-és-o sembilan nol nol satu dan modul ESP tiga puluh dua"),
+    ("Bawa KTPnya ya", None, "Bawa ka-té-pé-nya ya"),
+    ("The API costs Rp 150.000 per month.", None, "The API costs one hundred and fifty thousand rupiah per month."),
+    ("He has served since April 30, 2024.", None, "He has served since April thirtieth, twenty twenty-four."),
+    ("It opened on 17 August 1945.", None, "It opened on the seventeenth of August, nineteen forty-five."),
+    ("He led ITS from 2019 to 2024.", None, "He led ITS from twenty nineteen to twenty twenty-four."),
+    ("The term is 2024-2029.", None, "The term is twenty twenty-four to twenty twenty-nine."),
+    ("The RTX 4090 is fast.", None, "The RTX forty ninety is fast."),
+    # no function words: the language of the sentence before decides
+    ("Specs: 2 GPU, 64 GB RAM, 1 TB SSD.", "en", "Specs: two GPU, sixty-four GB Ram, one TB SSD."),
+    ("Specs: 2 GPU, 64 GB RAM, 1 TB SSD.", "id", "Specs: dua GPU, enam puluh empat GB Ram, satu TB SSD."),
+]
+
+
+@pytest.mark.parametrize("written,before,spoken", REPLY_CASES)
+def test_llm_replies(written, before, spoken):
+    assert normalize(written, language(written, before)) == spoken
+
+
+def test_language_needs_evidence_to_switch():
+    assert language("Specs: 2 GPU.") == "id"
+    assert language("Specs: 2 GPU.", "en") == "en"
+    assert language("Ini 2 GPU.", "en") == "id"
+    assert language("Monggo pinarak, kowe saka ngendi?") == "id"
+
+
+def test_unknown_capitals_use_the_model_and_known_ones_the_table():
+    import acronym_clf
+    if acronym_clf._load() is None:
+        pytest.skip("acronym_clf.joblib not built (python acronym_clf.py train)")
+    assert acronym_clf.predict("NIK") == ("SPELL_ID", 1.0)
+    assert normalize("Kantor BAPENDA buka") == "Kantor Bapenda buka"

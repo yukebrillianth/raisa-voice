@@ -49,6 +49,7 @@ The robot gateway is another repo (`~/IRIS/raisa-chat`, Bun). Per agent it picks
 | `orchestrator/bot.py` | one Pipecat pipeline per robot: VAD, turn detection, LLM, tools, fillers, context summary |
 | `orchestrator/voxcpm_tts.py` | TTS service: sends screen text + word timing, then normalized text to `tts` |
 | `orchestrator/speech_text.py` | written text -> spoken text (numbers, Rp, time, units, names, lexicon) |
+| `orchestrator/acronym_clf.py`, `acronym_data.csv` | model for capitals nobody listed (word / Indonesian letters / English letters); trained in the Dockerfile |
 | `orchestrator/titles.py`, `title_lexicon.json` | titles around names (Prof., Dr. (H.C.), S.T., Sp.PD-KGEH, Ph.D.), lexicon + grammar; built by `train/titles/` |
 | `orchestrator/asr_stt.py` | posts each speech segment to `asr`, with the agent's vocabulary as hotwords |
 | `orchestrator/protocol.py` | WebSocket messages (mirror Gemini Live) |
@@ -57,6 +58,7 @@ The robot gateway is another repo (`~/IRIS/raisa-chat`, Bun). Per agent it picks
 | `tts/server.py` | nano-vllm-voxcpm, merged voice weights (or base + LoRA) + reference clip, `POST /v1/tts {"text"}` -> PCM stream |
 | `scripts/try_client.py` | fake robot: measures first audio (TTFAB), gaps, barge-in |
 | `scripts/render_traps.py` | renders tricky sentences to `out/traps/` for listening |
+| `train/acronyms/` | acronym data generator with blind judges, model numbers (`README.md`) |
 | `train/titles/` | title lexicon: seed, LLM generator with blind judges, build + synthetic evaluation (`README.md`) |
 | `train/`, `train/v2/`, `train/v3/` | LoRA training, evaluation and merge scripts, `train/README.md`, `train/v3/v3_report.md` |
 | `voices/` (not in git) | `raisa-v2-merged/` (served: v2 folded into the base, 4.6 GB), `raisa-lora/` (v1), `raisa-lora-v2/`, `raisa-ref.wav` + `.txt` |
@@ -88,6 +90,7 @@ Remote copies: GitHub `yukebrillianth/raisa-voice`; HF model `yukebrillianth/rai
 | Served weights = `voices/raisa-v2-merged` (`VOICE_BASE`, `VOICE_LORA=none`); a LoRA change means re-running `train/v3/merge_lora.py` | the adapter path stays as rollback (`VOICE_BASE=openbmb/VoxCPM2 VOICE_LORA=/voices/raisa-lora-v2`); serving a fresh adapter on the merged base would apply it twice |
 | `Leveller` in `tts/server.py` | without it a 20 s sentence ends 4-5 dB quieter than it starts, heard as a muffled voice |
 | Title dots protected in the sentence splitter (`bot.TitleDots`) | "Prof. Dr. Ir." was sent to the TTS as a sentence of its own |
+| HDMI spelled "ha-dé-ém-i", not with English letters | measured 8/8 (raw 1/8); a local rewrite moved it to English letters by mistake |
 | One-word English sentence held for the next one (`bot.SentenceAggregator`) | "Sure." alone is said Indonesian "sur" 8/8 |
 
 Other facts worth knowing:
@@ -120,6 +123,9 @@ The user's pronunciation rules (authoritative):
 | other acronyms: ITS, HDMI, KTP, WIB, UMKM... | letter names of the sentence's language |
 | WITA BRIN SIM RAM LAN SKEM EXPO SPARK UNAIR HIMATEKTRO, robot / person / city names in capitals | read as a word; MAGE is "ma-ge", IRIS is "ai-ris" |
 | 23°C, 450 m², 4,2 GHz, 20 km/jam, Rp 45.000, 09.00 | spelled out in the sentence's language |
+| 2019-2024, 08.00-10.00, 5-10 | "... sampai ..." ("to" in English, years as "twenty nineteen") |
+| RTX 5090, ISO 9001, ESP32 | "RTX lima puluh sembilan puluh", digits one by one, "ESP tiga puluh dua" |
+| any acronym in an English sentence ("send a PDF file") | raw, never Indonesian letters |
 | Mbps, psi, dB, USB-C | "em be pe es", "pe es i", "di bi", "yu es bi si" |
 
 What was measured about acronyms:
@@ -206,6 +212,12 @@ As of 2026-11-17 (measurements: `train/v3/v3_report.md`, `train/v3/smooth_report
   (1 dB less fade, +0.4 s pause per cut), temperature 0.5/0.3 (worse, samples that never stop),
   5 Whisper workers (no faster: GPU-bound), merging Indonesian one-word sentences.
 
+- Text (2026-11-19, branch `normalizer-fixes`, from running real LLM replies through `bot.SentenceAggregator`):
+  ranges, dates, model numbers, English dates/years and Rp in English sentences are spoken; unlisted capitals go
+  to `acronym_clf.py` (80% on unseen tokens vs 43% for the old length rule); a sentence with no function words takes
+  the language of the previous sentence of the reply (`voxcpm_tts`); tenant words via `SPEECH_LEXICON_PATH`.
+  None of it listened to on the voice yet. `EN_ACRONYM_STYLE=spell` ("ji-pi-yu") exists but is off: unmeasured.
+
 Open work, in order:
 
 1. Acronyms the model's prior wins (GPU, GB, API, CPU, HD, PDF, WIT): v3b = v3 data without `acr_009`/`acr_052`,
@@ -249,6 +261,9 @@ Open work, in order:
    expansions ("Master of Science in Engineering") inside Indonesian sentences, 8 samples each;
    `TITLE_POST_MODE=short` is unmeasured. Grow the lexicon with `generate_title_dataset.mjs`, grounded on
    Permendikbudristek 6/2022 (59/2018 is revoked) and rector decrees.
+12. Text rules from 2026-11-19 (ranges, model numbers, English dates, acronym model guesses): render
+   `scripts/render_traps.py`-style sentences, 8 samples each. Then A/B `EN_ACRONYM_STYLE=spell` against raw for GPU,
+   GB, API, CPU, PDF with the phoneme judge; switch it on only if it wins.
 
 Decisions already made (do not reopen without new evidence):
 

@@ -10,3 +10,5 @@ voices/*
 
 # title lexicon generator config (may hold API keys)
 train/titles/llm.json
+orchestrator/acronym_clf.joblib
+train/acronyms/llm.json

@@ -25,18 +25,42 @@ Decisions for ambiguous input:
   "Dr." is Doktor and "dr." is Dokter. TITLE_DOTS keeps the sentence splitter off them (bot.py).
   titles.py reads them from a lexicon plus a grammar (composed S./M./A.Md./Sp. degrees, consultant
   parts, sloppy writing, English names in English sentences); see train/titles/README.md.
-- A sentence is English when it has English function words and no Indonesian ones; mixed
-  sentences ("silakan login pakai email") stay Indonesian. English sentences use "," for
-  thousands and "." for decimals.
+- A sentence is English when it has English function words and no Indonesian or Javanese ones;
+  mixed sentences ("silakan login pakai email") stay Indonesian. A sentence with no function words
+  at all ("Specs: 2 GPU, 64 GB RAM.") takes the language of the sentence before it in the same reply
+  (voxcpm_tts keeps it). English sentences use "," for thousands and "." for decimals; Rp amounts
+  written the Indonesian way ("Rp 150.000") are still thousands.
+- Capitals nobody listed go to acronym_clf.py, a small model trained on acronym_data.csv
+  (WORD / SPELL_ID / SPELL_EN, 80% on unseen tokens in grouped cross-validation against 43% for the
+  old "longer than 6 letters is a word" rule). Below its confidence they are spelled in Indonesian.
+- EN_ACRONYMS stay raw in Indonesian sentences, as served and trained. EN_ACRONYM_STYLE=spell writes
+  them with English letter names instead ("GPU" -> "ji-pi-yu"); not measured yet, while raw GPU, API,
+  PDF are known wrong (0-2/8, CLAUDE.md section 8). Measure before switching it on.
+- Ranges "2019-2024", "08.00-10.00", "5-10 jam" are said with "sampai" ("to" in English). A score
+  like "3-1" is read as a range too. Dates "19-11-2024" or "19/11/2024" are day-month-year:
+  "sembilan belas November dua ribu dua puluh empat", "November nineteenth, twenty twenty-four".
+- Model numbers: "RTX 5090" -> "RTX lima puluh sembilan puluh" (pairs, as people say GPU names),
+  "ISO 9001" -> digit by digit, letters glued to digits ("ESP32") get a space first.
+- SPEECH_LEXICON_PATH points to an optional JSON file with tenant words (read_as_word, en_acronyms,
+  id_acronyms, fixed, titles) so a hospital or a telco can add its own names without a code change.
 The LoRA v2 "hybrid" training transcripts are this output with QRIS and every acronym left raw.
 """
 
+import json
+import logging
+import os
 import re
+from pathlib import Path
 
 import numpy as np
 from num2words import num2words
 
 from pipecat.utils.text.transforms.strip_markdown import strip_markdown
+
+import acronym_clf
+
+log = logging.getLogger(__name__)
+EN_ACRONYM_STYLE = os.environ.get("EN_ACRONYM_STYLE", "raw")   # raw | spell
 
 
 def words(n: int) -> str:
@@ -74,13 +98,18 @@ FIXED = {"QRIS": "kyuris", "kWh": "kilowatt hour", "GHz": "gigahertz", "kHz": "k
          # One e was dropped 3/8 written plain, 1/8 as "se-enaknya" (Gemini judge). "seekor" and "keenam" lose an
          # e however they are written (needs training data); "keempat", "keesokan" are right (8/8).
          "seenaknya": "se-enaknya", "Seenaknya": "Se-enaknya"}
+# English letter names for EN_ACRONYM_STYLE=spell, written so VoxCPM reads them in an Indonesian sentence.
+EN_LETTERS = dict(zip("ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+                      "ei bi si di i ef ji eich ai jei kei el em en ou pi kyu ar es ti yu vi dabelyu eks wai zi".split()))
 # Said with English letter names in both languages (the user's rule): sent raw, as the LoRA was trained.
-EN_ACRONYMS = set("USB TV VIP NFC GB IT ID QR API GPU CPU SSD AI LED PC PDF".split())
+EN_ACRONYMS = set("USB TV VIP NFC GB MB KB TB IT ID QR API GPU CPU SSD AI LED PC PDF".split())
 # English sentences: these are spelled with English letter names ("W I B"); other acronyms stay raw.
 SPELLED_EN = {"WIB", "WIT"}
 ID_WORDS = set("""yang dan di ke dari ini itu untuk dengan saya anda kamu ada tidak akan bisa sudah
     silakan mohon ya adalah pada atau juga kami kita apa mana berapa sampai pukul jam dalam
     selamat terima kasih tolong sedang belum lagi""".split())
+JV_WORDS = set("""aku kowe sampeyan panjenengan saka karo ning neng ora wis durung piye opo apa sapa
+    iki iku kuwi monggo matur nuwun sugeng rawuh enggih nggih mboten""".split())
 EN_WORDS = set("""the is are you your to of and in on at for with please this that it we our my
     will can be have has what where how thank welcome yes here there from by me i an a
     sure okay ok sorry certainly alright""".split())
@@ -91,7 +120,28 @@ UNITS = {"km": "kilometer", "m": "meter", "cm": "sentimeter", "mm": "milimeter",
 # Written in capitals but said as a word, not spelled: robot and team names, words, places, people.
 READ_AS_WORD = set("""OK RAISA NABBIT MAGE IRIS BIMA LUNA WITA BRIN SIM RAM LAN SKEM EXPO SPARK UNAIR
     HIMATEKTRO TENDON GARUDA NUSANTARA ANDI ARIF BALI BANDUNG DEWI DINA FARHAN JAKARTA JOGJA KARA
-    MALANG MEDAN NORA PUTRA RARA RENDI SATRIA SEMARANG SENO SINTA SURABAYA TASYA YOGI ZARA""".split())
+    MALANG MEDAN NORA PUTRA RARA RENDI SATRIA SEMARANG SENO SINTA SURABAYA TASYA YOGI ZARA
+    UNESA UINSA IKIP PENS UNDIP UNPAD UNHAS UNSOED BPOM INDOSAT MAKASSAR PALEMBANG""".split())
+ID_ACRONYMS: set[str] = set()   # always Indonesian letters, even where the model guesses otherwise
+
+
+def _load_tenant_lexicon() -> None:
+    """Words of one deployment (SPEECH_LEXICON_PATH, JSON): read_as_word, en_acronyms, id_acronyms, fixed."""
+    path = os.environ.get("SPEECH_LEXICON_PATH", "")
+    if not path:
+        return
+    try:
+        data = json.loads(Path(path).read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        log.warning("Ignoring SPEECH_LEXICON_PATH %s: %s", path, exc)
+        return
+    READ_AS_WORD.update(w.upper() for w in data.get("read_as_word", []))
+    EN_ACRONYMS.update(w.upper() for w in data.get("en_acronyms", []))
+    ID_ACRONYMS.update(w.upper() for w in data.get("id_acronyms", []))
+    FIXED.update(data.get("fixed", {}))
+
+
+_load_tenant_lexicon()
 # Titles around names ("Prof. Dr. Ir. Budi, S.T., Ph.D.") are read by titles.py. TITLE_DOTS is
 # re-exported for bot.py, which keeps the sentence splitter off a title's dots.
 from titles import TITLE_DOTS, say_titles  # noqa: E402,F401
@@ -104,16 +154,89 @@ FRONT = [
     # Table rows and their |---| separators: tables go to the screen, never to the voice.
     (re.compile(r"^\s*\|.*\|\s*$\n?", re.M), lambda m: ""),
     (re.compile(r"[\U0001F000-\U0001FAFF☀-➿️‍]"), lambda m: ""),
-    (re.compile(r"\b(" + "|".join(FIXED) + r")\b"), lambda m: FIXED[m.group(1)]),
+    # Markdown the splitter cut in half ("**Kol." in one sentence, "...**" in the next).
+    (re.compile(r"\*\*|__|`"), lambda m: ""),
+    # Longest first, so a tenant's "IM3 Ooredoo" wins over "IM3".
+    (re.compile(r"\b(" + "|".join(map(re.escape, sorted(FIXED, key=len, reverse=True))) + r")\b"),
+     lambda m: FIXED[m.group(1)]),
+    # "ESP32", "RTX5090": a space first, then the number and the capitals are read as usual.
+    (re.compile(r"\b([A-Z]{2,})(\d{2,})\b"), lambda m: f"{m.group(1)} {m.group(2)}"),
 ]
 
 
+def spell_id(word: str) -> str:
+    return "-".join(LETTERS[c] for c in word)
+
+
+def spell_en(word: str) -> str:
+    return "-".join(EN_LETTERS[c] for c in word)
+
+
 def say_capitals(word: str, lang: str) -> str:
-    if word in READ_AS_WORD or len(word) > 6:
+    if word in READ_AS_WORD:
         return word.capitalize()
     if lang == "en":
         return " ".join(word) if word in SPELLED_EN else word
-    return word if word in EN_ACRONYMS else "-".join(LETTERS[c] for c in word)
+    if word in EN_ACRONYMS:
+        return spell_en(word) if EN_ACRONYM_STYLE == "spell" else word
+    if word in ID_ACRONYMS:
+        return spell_id(word)
+    guess = acronym_clf.classify(word)
+    if guess == "WORD" or (guess is None and len(word) > 6):
+        return word.capitalize()
+    if guess == "SPELL_EN":
+        return spell_en(word) if EN_ACRONYM_STYLE == "spell" else word
+    return spell_id(word)
+
+
+def say_capitals_match(m: re.Match, lang: str) -> str:
+    """'KTPnya' -> 'ka-té-pé-nya': the suffix stays a separate part of the spelling."""
+    said = say_capitals(m.group(1), lang)
+    return said + ("-" if m.group(2) and said != m.group(1) and said[-1].islower() and "-" in said else "") + (m.group(2) or "")
+
+
+def model_pairs(d: str, w) -> str:
+    """'5090' -> 'lima puluh sembilan puluh', '7900' -> 'tujuh puluh sembilan ratus'."""
+    hundred = "ratus" if w is words else "hundred"
+    tail = hundred if d[2:] == "00" else w(int(d[2:])) if d[2] != "0" else f"{'nol' if w is words else 'oh'} {w(int(d[3]))}"
+    return f"{w(int(d[:2]))} {tail}"
+
+
+def year_en(n: int) -> str:
+    return num2words(n, lang="en", to="year")
+
+
+def is_year(s: str) -> bool:
+    return bool(re.fullmatch(r"1[1-9]\d\d|20\d\d", s))
+
+
+def say_range(m: re.Match, lang: str) -> str:
+    a, b = m.group(1), m.group(2)
+    if lang == "en":
+        if is_year(a) and is_year(b):
+            return f"{year_en(int(a))} to {year_en(int(b))}"
+        return f"{a} to {b}"
+    return f"{a} sampai {b}"
+
+
+BULAN = "Januari Februari Maret April Mei Juni Juli Agustus September Oktober November Desember".split()
+EN_MONTHS = "January February March April May June July August September October November December".split()
+# "19-11-2024" or "19/11/2024": day, month, year.
+DATE = re.compile(r"\b(0?[1-9]|[12]\d|3[01])[-/](0?[1-9]|1[0-2])[-/](\d{4})\b")
+
+
+def say_date(m: re.Match, lang: str) -> str:
+    day, mon, year = int(m.group(1)), int(m.group(2)), int(m.group(3))
+    if lang == "en":
+        return f"{EN_MONTHS[mon - 1]} {num2words(day, lang='en', to='ordinal')}, {year_en(year)}"
+    return f"{words(day)} {BULAN[mon - 1]} {words(year)}"
+
+
+# "2019-2024", "08.00-10.00", "5-10": a dash between two numbers. Not dates ("19-11-2024"), not "ke-12".
+RANGE = re.compile(r"(?<![\w.,:-])(\d[\d.,:]*\d|\d)\s?[–-]\s?(\d[\d.,:]*\d|\d)(?![\w-])")
+MODEL_PAIRS = re.compile(r"\b(RTX|GTX|RX)\s(\d{4})\b")
+MODEL_DIGITS = re.compile(r"\b(ISO|IEC|SNI|IEEE)\s(\d{3,})\b")
+CAPITALS = re.compile(r"\b([A-Z]{2,})(nya)?\b")
 
 
 RULES = [
@@ -122,7 +245,11 @@ RULES = [
     (re.compile(r"\s?m²"), lambda m: " meter persegi"),
     (re.compile(r"(\+62|\b0)[\d\- ]{8,}\d"), lambda m: ("plus enam dua " if m.group(1) == "+62" else "nol ")
      + digits(m.group(0)[len(m.group(1)):])),
+    (DATE, lambda m: say_date(m, "id")),
+    (RANGE, lambda m: say_range(m, "id")),
     (re.compile(r"\b([01]?\d|2[0-3])[:.]([0-5]\d)\b(?![.,]?\d)"), lambda m: clock(m.group(1), m.group(2))),
+    (MODEL_PAIRS, lambda m: f"{m.group(1)} {model_pairs(m.group(2), words)}"),
+    (MODEL_DIGITS, lambda m: f"{m.group(1)} {digits(m.group(2))}"),
     (re.compile(rf"\bRp\.?\s?{NUM}{SCALES}(?:,-|,00)?"),
      lambda m: " ".join(filter(None, [number(m.group(1), m.group(2)), m.group(3), "rupiah"]))),
     (re.compile(rf"{NUM}\s?%"), lambda m: f"{number(m.group(1), m.group(2))} persen"),
@@ -132,7 +259,7 @@ RULES = [
     (re.compile(rf"\b{NUM}\b"), lambda m: number(m.group(1), m.group(2))),
     # The dot after "dll." stays: it usually also ends the sentence, which gives the pause.
     (re.compile(r"\b(" + "|".join(ABBREVIATIONS) + r")\b"), lambda m: ABBREVIATIONS[m.group(1)]),
-    (re.compile(r"\b[A-Z]{2,}\b"), lambda m: say_capitals(m.group(0), "id")),
+    (CAPITALS, lambda m: say_capitals_match(m, "id")),
 ]
 
 
@@ -156,11 +283,43 @@ def en_quantity(m: re.Match) -> str:
     return f"{en_number(m.group(1), m.group(2))} {unit}{plural}"
 
 
+MONTHS = ("January February March April May June July August September October November December "
+          "Jan Feb Mar Apr Jun Jul Aug Sep Sept Oct Nov Dec").split()
+MONTH = r"(" + "|".join(MONTHS) + r")\.?"
+FULL_MONTH = dict(zip("Jan Feb Mar Apr Jun Jul Aug Sep Sept Oct Nov Dec".split(),
+                      "January February March April June July August September September October November December".split()))
+
+
+def month(m: str) -> str:
+    return FULL_MONTH.get(m, m)
+
+
+def ordinal(n: str) -> str:
+    return num2words(int(n), lang="en", to="ordinal")
+
+
 EN_RULES = [
     (re.compile(r"\s?°C"), lambda m: " degrees Celsius"),
     (re.compile(r"\s?°"), lambda m: " degrees"),
     (re.compile(r"\s?m²"), lambda m: " square meters"),
+    # Rupiah written the Indonesian way inside an English sentence: "Rp 150.000" is thousands.
+    (re.compile(r"\b(?:Rp\.?|IDR)\s?(\d{1,3}(?:\.\d{3})+)(?:,(\d+))?(?:,-)?"),
+     lambda m: f"{en_number(m.group(1).replace('.', ''), m.group(2))} rupiah"),
     (re.compile(rf"\b(?:Rp\.?|IDR)\s?{EN_NUM}"), lambda m: f"{en_number(m.group(1), m.group(2))} rupiah"),
+    (re.compile(r"\b\d{1,3}(?:\.\d{3}){2,}\b"), lambda m: en_words(int(m.group(0).replace(".", "")))),
+    # "April 30, 2024" -> "April thirtieth, twenty twenty-four"; "30 April 2024" -> "the thirtieth of April, ..."
+    (re.compile(rf"\b{MONTH}\s(\d{{1,2}})(?:st|nd|rd|th)?(?:,?\s(\d{{4}}))?\b"),
+     lambda m: f"{month(m.group(1))} {ordinal(m.group(2))}" + (f", {year_en(int(m.group(3)))}" if m.group(3) else "")),
+    (re.compile(rf"\b(\d{{1,2}})(?:st|nd|rd|th)?\s{MONTH}(?:,?\s(\d{{4}}))?\b"),
+     lambda m: f"the {ordinal(m.group(1))} of {month(m.group(2))}" + (f", {year_en(int(m.group(3)))}" if m.group(3) else "")),
+    (DATE, lambda m: say_date(m, "en")),
+    (RANGE, lambda m: say_range(m, "en")),
+    (re.compile(r"\b(from|between)\s(1[1-9]\d\d|20\d\d)\s(to|and)\s(1[1-9]\d\d|20\d\d)\b", re.I),
+     lambda m: f"{m.group(1)} {year_en(int(m.group(2)))} {m.group(3)} {year_en(int(m.group(4)))}"),
+    (re.compile(r"\b(in|since|from|until|till|by|year|before|after|between|around|of)\s(1[1-9]\d\d|20\d\d)\b", re.I),
+     lambda m: f"{m.group(1)} {year_en(int(m.group(2)))}"),
+    (MODEL_PAIRS, lambda m: f"{m.group(1)} {model_pairs(m.group(2), en_words)}"),
+    (MODEL_DIGITS, lambda m: f"{m.group(1)} {' '.join(en_words(int(d)) for d in m.group(2))}"),
     (re.compile(r"\b([01]?\d|2[0-3]):([0-5]\d)\b"),
      lambda m: en_words(int(m.group(1))) + ("" if m.group(2) == "00" else
                (" oh " if m.group(2)[0] == "0" else " ") + en_words(int(m.group(2))))),
@@ -171,10 +330,19 @@ EN_RULES = [
 ]
 
 
-def language(text: str) -> str:
+def language_evidence(text: str) -> str | None:
+    """'id' or 'en' from the function words, None when the sentence has none ("Specs: 2 GPU.")."""
     tokens = re.findall(r"[a-z]+", text.lower())
-    english = any(t in EN_WORDS for t in tokens) and not any(t in ID_WORDS for t in tokens)
-    return "en" if english else "id"
+    if any(t in ID_WORDS or t in JV_WORDS for t in tokens):
+        return "id"
+    if any(t in EN_WORDS for t in tokens):
+        return "en"
+    return None
+
+
+def language(text: str, before: str | None = None) -> str:
+    """Language of a sentence; `before` is the previous sentence's, used when this one has no clue."""
+    return language_evidence(text) or before or "id"
 
 
 def normalize(text: str, lang: str | None = None) -> str:
@@ -186,7 +354,7 @@ def normalize(text: str, lang: str | None = None) -> str:
     text = say_titles(text, lang)
     for pattern, replace in rules:
         text = pattern.sub(replace, text)
-    return text
+    return re.sub(r"[ \t]{2,}", " ", text)
 
 
 async def screen_text(text: str) -> str:
@@ -202,7 +370,7 @@ SPEECH_TRANSFORMS = [("*", strip_markdown)]
 PAUSES = {",": 1.0, ";": 1.5, ":": 1.5, ".": 2.0, "?": 2.0, "!": 2.0}
 
 
-def word_times(shown: list[str], audio: bytes, sample_rate: int) -> list[float]:
+def word_times(shown: list[str], audio: bytes, sample_rate: int, lang: str | None = None) -> list[float]:
     """Start time (s) of each on-screen word in its sentence's PCM16 audio.
 
     Words are spread over the voiced span in proportion to the syllables of their spoken
@@ -216,7 +384,7 @@ def word_times(shown: list[str], audio: bytes, sample_rate: int) -> list[float]:
     if not len(voiced):
         return [0.0] * len(shown)
     start, end = voiced[0] / sample_rate, voiced[-1] / sample_rate
-    lang = language(" ".join(shown))
+    lang = lang or language(" ".join(shown))
     said = [normalize(w, lang) for w in shown]
     # The pause comes from the spoken form: "Prof." is said "Profesor", with no stop after it.
     weights = [max(1, len(re.findall(r"[aiueoéè]+", w.lower()))) + PAUSES.get(w[-1:], 0.0) for w in said]

@@ -15,7 +15,7 @@ from pipecat.frames.frames import DataFrame, ErrorFrame, Frame
 from pipecat.services.settings import TTSSettings
 from pipecat.services.tts_service import TTSService
 
-from speech_text import SPEECH_TRANSFORMS, normalize, screen_text, word_times
+from speech_text import SPEECH_TRANSFORMS, language, normalize, screen_text, word_times
 
 
 @dataclass
@@ -48,6 +48,9 @@ class VoxCPMTTSService(TTSService):
         )
         self._url = f"{base_url}/v1/tts"
         self._session: aiohttp.ClientSession | None = None
+        # Language of the last sentence of the current reply: a sentence with no function words
+        # ("Specs: 2 GPU, 64 GB RAM.") is read in the language the reply is already in.
+        self._last_lang: tuple[str, str] | None = None
 
     def can_generate_metrics(self) -> bool:
         return True
@@ -58,7 +61,10 @@ class VoxCPMTTSService(TTSService):
         sentence = SentenceWords(words=(await screen_text(text)).split())
         if sentence.words:
             yield sentence
-        spoken = normalize(text).strip()
+        before = self._last_lang[1] if self._last_lang and self._last_lang[0] == context_id else None
+        lang = language(text, before)
+        self._last_lang = (context_id, lang)
+        spoken = normalize(text, lang).strip()
         if not spoken:  # emoji only, a table row
             sentence.times = [0.0] * len(sentence.words)
             return
@@ -87,7 +93,7 @@ class VoxCPMTTSService(TTSService):
         finally:
             await self.stop_ttfb_metrics()
             # Also on errors and cut-short audio, so the words are never held back for good.
-            sentence.times = word_times(sentence.words, bytes(audio), audio_rate)
+            sentence.times = word_times(sentence.words, bytes(audio), audio_rate, lang)
 
     async def cleanup(self):
         await super().cleanup()
