@@ -189,6 +189,7 @@ def main() -> None:
     ap.add_argument("--epochs", type=int, default=4)
     ap.add_argument("--lr", type=float, default=3e-5)
     ap.add_argument("--batch", type=int, default=32)
+    ap.add_argument("--accum", type=int, default=1, help="Gradient accumulation: --batch 8 --accum 4 acts like 32.")
     ap.add_argument("--max-len", type=int, default=128)
     ap.add_argument("--heldout", type=float, default=0.15)
     ap.add_argument("--seed", type=int, default=13)
@@ -206,33 +207,37 @@ def main() -> None:
           f"unseen-capitals test {len(parts['unseen'])} ({len(parts['held_tokens'])} tokens held out)")
     print("tags:", dict(Counter(t for r in parts["train"] for t in r["tags"])))
 
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+    # CUDA on the server, the Apple GPU (MPS) on a Mac, the CPU otherwise. MPS trains in fp32.
+    device = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
     tokenizer = AutoTokenizer.from_pretrained(args.base)
     model = AutoModelForTokenClassification.from_pretrained(
         args.base, num_labels=len(LABELS), id2label=dict(enumerate(LABELS)), label2id=L2I).to(device)
 
     enc, labels = encode(tokenizer, parts["train"], args.max_len)
-    steps = args.epochs * math.ceil(len(labels) / args.batch)
+    steps = args.epochs * math.ceil(len(labels) / (args.batch * args.accum))
     opt = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=0.01)
     sched = get_linear_schedule_with_warmup(opt, int(0.06 * steps), steps)
     use_bf16 = device == "cuda" and torch.cuda.is_bf16_supported()
 
     best, best_state, history = -1.0, None, []
     t0 = time.time()
+    step = 0
     for epoch in range(args.epochs):
         model.train()
         total = 0.0
         for _, b in batches(enc, labels, args.batch, True, rng):
             b = {k: v.to(device) for k, v in b.items()}
             b["input_ids"][b["attention_mask"] == 0] = tokenizer.pad_token_id
-            with torch.autocast(device_type=device, dtype=torch.bfloat16, enabled=use_bf16):
-                loss = model(**b).loss
+            with torch.autocast(device_type="cuda", dtype=torch.bfloat16, enabled=use_bf16):
+                loss = model(**b).loss / args.accum
             loss.backward()
-            torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
-            opt.step()
-            sched.step()
-            opt.zero_grad()
-            total += loss.item()
+            step += 1
+            if step % args.accum == 0:
+                torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+                opt.step()
+                sched.step()
+                opt.zero_grad()
+            total += loss.item() * args.accum
         val = score(parts["val"], predict(model, tokenizer, parts["val"], args.max_len, device))
         key = (val["capitals"]["tagger"] or 0) + (val["word_language"]["tagger"] or 0)
         history.append({"epoch": epoch + 1, "loss": round(total, 3), "val": val})

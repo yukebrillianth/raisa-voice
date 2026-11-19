@@ -80,6 +80,23 @@ tagger before it goes to the TTS, so a few milliseconds matter (first-sound targ
 
 Keep every report (`out/<run>/report.md`) with its seed and data size: they are the ablation table.
 
+## Training on a Mac (Apple Silicon, 16 GB)
+
+The script picks the Apple GPU (MPS) by itself; it trains in fp32 there. The ONNX file it exports
+runs the same on the x86 server.
+
+```bash
+python3 -m venv .venv && source .venv/bin/activate
+pip install torch transformers tokenizers onnx onnxruntime scikit-learn
+python train_tagger.py --data out/train.jsonl --out out/xlmr-base --batch 16 --accum 2
+```
+
+- XLM-R base (278M parameters) fits: weights plus AdamW state are about 4.5 GB. Close other big
+  apps; unified memory is shared with macOS.
+- XLM-R large (560M) is tight on 16 GB: `--batch 4 --accum 8`, expect hours, and a swap-heavy
+  machine. Train large on the server or the GH200 instead.
+- Not measured on a Mac yet: write the minutes from `report.md` down with the run.
+
 ## Deploying
 
 ```bash
