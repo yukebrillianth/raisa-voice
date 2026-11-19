@@ -50,6 +50,7 @@ import json
 import logging
 import os
 import re
+from contextvars import ContextVar
 from pathlib import Path
 
 import numpy as np
@@ -58,9 +59,14 @@ from num2words import num2words
 from pipecat.utils.text.transforms.strip_markdown import strip_markdown
 
 import acronym_clf
+import text_tagger
+from langid import function_words
 
 log = logging.getLogger(__name__)
 EN_ACRONYM_STYLE = os.environ.get("EN_ACRONYM_STYLE", "raw")   # raw | spell
+TAGGER_CONF = float(os.environ.get("TEXT_TAGGER_CONF", "0.6"))
+# Readings the text tagger gave the capitals of the sentence being normalized.
+_CAPS_HINTS: ContextVar[dict] = ContextVar("caps_hints", default={})
 
 
 def words(n: int) -> str:
@@ -105,14 +111,6 @@ EN_LETTERS = dict(zip("ABCDEFGHIJKLMNOPQRSTUVWXYZ",
 EN_ACRONYMS = set("USB TV VIP NFC GB MB KB TB IT ID QR API GPU CPU SSD AI LED PC PDF".split())
 # English sentences: these are spelled with English letter names ("W I B"); other acronyms stay raw.
 SPELLED_EN = {"WIB", "WIT"}
-ID_WORDS = set("""yang dan di ke dari ini itu untuk dengan saya anda kamu ada tidak akan bisa sudah
-    silakan mohon ya adalah pada atau juga kami kita apa mana berapa sampai pukul jam dalam
-    selamat terima kasih tolong sedang belum lagi""".split())
-JV_WORDS = set("""aku kowe sampeyan panjenengan saka karo ning neng ora wis durung piye opo apa sapa
-    iki iku kuwi monggo matur nuwun sugeng rawuh enggih nggih mboten""".split())
-EN_WORDS = set("""the is are you your to of and in on at for with please this that it we our my
-    will can be have has what where how thank welcome yes here there from by me i an a
-    sure okay ok sorry certainly alright""".split())
 ABBREVIATIONS = {"dll": "dan lain-lain", "dsb": "dan sebagainya", "dst": "dan seterusnya",
                  "tsb": "tersebut", "yg": "yang", "dgn": "dengan", "utk": "untuk"}
 UNITS = {"km": "kilometer", "m": "meter", "cm": "sentimeter", "mm": "milimeter", "kg": "kilogram",
@@ -181,7 +179,10 @@ def say_capitals(word: str, lang: str) -> str:
         return spell_en(word) if EN_ACRONYM_STYLE == "spell" else word
     if word in ID_ACRONYMS:
         return spell_id(word)
-    guess = acronym_clf.classify(word)
+    guess = acronym_clf.known(word)
+    if guess is None:
+        tagged, conf = _CAPS_HINTS.get().get(word, (None, 0.0))
+        guess = tagged if conf >= TAGGER_CONF else acronym_clf.classify(word)
     if guess == "WORD" or (guess is None and len(word) > 6):
         return word.capitalize()
     if guess == "SPELL_EN":
@@ -331,13 +332,18 @@ EN_RULES = [
 
 
 def language_evidence(text: str) -> str | None:
-    """'id' or 'en' from the function words, None when the sentence has none ("Specs: 2 GPU.")."""
-    tokens = re.findall(r"[a-z]+", text.lower())
-    if any(t in ID_WORDS or t in JV_WORDS for t in tokens):
-        return "id"
-    if any(t in EN_WORDS for t in tokens):
-        return "en"
-    return None
+    """'id' or 'en', None when nothing in the sentence says ("Specs: 2 GPU.").
+
+    Function words of one language only ("the", "is" / "yang", "ya") decide: they are almost never
+    wrong. The text tagger decides the rest, sentences with none ("Great choice!") or with both
+    ("I'm at the lobby ya"), so a weak model can never overturn the easy cases."""
+    local, english = function_words(text)
+    if local != english:
+        return "id" if local else "en"
+    tagged = text_tagger.analyse(text)
+    if tagged is not None and tagged[0]:
+        return tagged[0]
+    return "id" if local else None
 
 
 def language(text: str, before: str | None = None) -> str:
@@ -345,8 +351,11 @@ def language(text: str, before: str | None = None) -> str:
     return language_evidence(text) or before or "id"
 
 
-def normalize(text: str, lang: str | None = None) -> str:
-    """Spoken form of one sentence; `lang` ("id"/"en") overrides detection, e.g. for single words."""
+def normalize(text: str, lang: str | None = None, tagger: bool = True) -> str:
+    """Spoken form of one sentence; `lang` ("id"/"en") overrides detection, e.g. for single words.
+    `tagger=False` skips the text tagger (word_times normalizes word by word, after the audio)."""
+    tagged = text_tagger.analyse(text) if tagger else None
+    _CAPS_HINTS.set(tagged[1] if tagged else {})
     lang = lang or language(text)
     rules = EN_RULES if lang == "en" else RULES
     for pattern, replace in FRONT:
@@ -385,7 +394,7 @@ def word_times(shown: list[str], audio: bytes, sample_rate: int, lang: str | Non
         return [0.0] * len(shown)
     start, end = voiced[0] / sample_rate, voiced[-1] / sample_rate
     lang = lang or language(" ".join(shown))
-    said = [normalize(w, lang) for w in shown]
+    said = [normalize(w, lang, tagger=False) for w in shown]
     # The pause comes from the spoken form: "Prof." is said "Profesor", with no stop after it.
     weights = [max(1, len(re.findall(r"[aiueoéè]+", w.lower()))) + PAUSES.get(w[-1:], 0.0) for w in said]
     total, before, times = sum(weights), 0.0, []

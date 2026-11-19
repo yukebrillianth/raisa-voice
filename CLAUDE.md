@@ -49,6 +49,7 @@ The robot gateway is another repo (`~/IRIS/raisa-chat`, Bun). Per agent it picks
 | `orchestrator/bot.py` | one Pipecat pipeline per robot: VAD, turn detection, LLM, tools, fillers, context summary |
 | `orchestrator/voxcpm_tts.py` | TTS service: sends screen text + word timing, then normalized text to `tts` |
 | `orchestrator/speech_text.py` | written text -> spoken text (numbers, Rp, time, units, names, lexicon) |
+| `orchestrator/text_tagger.py`, `langid.py` | optional sentence model (int8 ONNX on CPU, `models/text_tagger`): language of each word, reading of each capital; function words otherwise |
 | `orchestrator/acronym_clf.py`, `acronym_data.csv` | model for capitals nobody listed (word / Indonesian letters / English letters); trained in the Dockerfile |
 | `orchestrator/titles.py`, `title_lexicon.json` | titles around names (Prof., Dr. (H.C.), S.T., Sp.PD-KGEH, Ph.D.), lexicon + grammar; built by `train/titles/` |
 | `orchestrator/asr_stt.py` | posts each speech segment to `asr`, with the agent's vocabulary as hotwords |
@@ -58,6 +59,7 @@ The robot gateway is another repo (`~/IRIS/raisa-chat`, Bun). Per agent it picks
 | `tts/server.py` | nano-vllm-voxcpm, merged voice weights (or base + LoRA) + reference clip, `POST /v1/tts {"text"}` -> PCM stream |
 | `scripts/try_client.py` | fake robot: measures first audio (TTFAB), gaps, barge-in |
 | `scripts/render_traps.py` | renders tricky sentences to `out/traps/` for listening |
+| `train/tagger/` | sentence generator with blind judges, XLM-R fine-tune + ONNX export, report against the rules (`README.md`) |
 | `train/acronyms/` | acronym data generator with blind judges, model numbers (`README.md`) |
 | `train/titles/` | title lexicon: seed, LLM generator with blind judges, build + synthetic evaluation (`README.md`) |
 | `train/`, `train/v2/`, `train/v3/` | LoRA training, evaluation and merge scripts, `train/README.md`, `train/v3/v3_report.md` |
@@ -217,6 +219,9 @@ As of 2026-11-17 (measurements: `train/v3/v3_report.md`, `train/v3/smooth_report
   to `acronym_clf.py` (80% on unseen tokens vs 43% for the old length rule); a sentence with no function words takes
   the language of the previous sentence of the reply (`voxcpm_tts`); tenant words via `SPEECH_LEXICON_PATH`.
   None of it listened to on the voice yet. `EN_ACRONYM_STYLE=spell` ("ji-pi-yu") exists but is off: unmeasured.
+  The text tagger (`train/tagger/`) is wired in but has no trained model yet: without `models/text_tagger`
+  nothing changes. When installed it decides the sentence language only when function words do not (none,
+  or both languages), and capital readings only after the user's lists and the labelled table.
 
 Open work, in order:
 
@@ -264,6 +269,9 @@ Open work, in order:
 12. Text rules from 2026-11-19 (ranges, model numbers, English dates, acronym model guesses): render
    `scripts/render_traps.py`-style sentences, 8 samples each. Then A/B `EN_ACRONYM_STYLE=spell` against raw for GPU,
    GB, API, CPU, PDF with the phoneme judge; switch it on only if it wins.
+13. Text tagger: run `train/tagger/generate_sentences.mjs` (about 20k sentences, one strong judge + Gemma),
+   train XLM-R base and large, keep both `report.md` files (unseen-capital accuracy against the rules, ms per
+   sentence), deploy the better one only if it beats the rules on unseen capitals without costing first sound.
 
 Decisions already made (do not reopen without new evidence):
 

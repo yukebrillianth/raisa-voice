@@ -8,8 +8,9 @@ Order inside `speech_text.say_capitals` (Indonesian sentences):
 
 1. `READ_AS_WORD`, `EN_ACRONYMS`, `ID_ACRONYMS` and the tenant lexicon (`SPEECH_LEXICON_PATH`).
 2. Any token in `acronym_data.csv` (or a verified generated file): its label, looked up.
-3. The model's guess, if its confidence is at least `ACRONYM_CLF_CONF` (0.5).
-4. Indonesian letter names, the measured rule.
+3. The text tagger's reading from the whole sentence, when installed and sure (`train/tagger/`).
+4. This model's guess from the letters, if its confidence is at least `ACRONYM_CLF_CONF` (0.5).
+5. Indonesian letter names, the measured rule.
 
 English sentences skip all of this: acronyms stay raw ("You need to send a PDF file").
 

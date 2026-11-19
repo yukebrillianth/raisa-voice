@@ -120,6 +120,12 @@ def predict(token: str) -> tuple[str, float] | None:
     return label, conf
 
 
+def known(token: str) -> str | None:
+    """The label of a token in the curated or verified table, without guessing."""
+    _load()
+    return _known.get(token)
+
+
 def classify(token: str, threshold: float = THRESHOLD) -> str | None:
     """WORD / SPELL_ID / SPELL_EN, or None when the model is missing or unsure."""
     p = predict(token)

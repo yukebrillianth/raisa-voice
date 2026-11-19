@@ -12,3 +12,5 @@ voices/*
 train/titles/llm.json
 orchestrator/acronym_clf.joblib
 train/acronyms/llm.json
+models/
+train/tagger/llm.json
