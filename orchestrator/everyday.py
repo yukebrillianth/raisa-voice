@@ -10,12 +10,16 @@ ABBREV_DOTS and LIST_NUMBER tell bot.TitleDots which dots never end a sentence.
 
 from __future__ import annotations
 
+import os
 import re
 from string import ascii_uppercase
 
 from num2words import num2words
 
 ID_LETTERS = dict(zip(ascii_uppercase, "a bé cé dé é éf gé ha i jé ka él ém én o pé ki ér és té u vé wé éks yé zét".split()))
+EN_LETTERS = dict(zip(ascii_uppercase, "ei bi si di i ef ji eich ai jei kei el em en ou pi kyu ar es ti yu vi dabelyu eks wai zi".split()))
+# Same switch as speech_text: English letters raw (as served) or respelled ("ji") in Indonesian sentences.
+EN_ACRONYM_STYLE = os.environ.get("EN_ACRONYM_STYLE", "raw")
 
 
 def w(n: int, lang: str) -> str:
@@ -64,17 +68,18 @@ _EMAIL = re.compile(rf"\b([A-Za-z0-9._%+-]+)@({DOMAIN})", re.I)
 
 
 def say_domain(domain: str, lang: str) -> str:
-    """'its.ac.id' -> 'i-té-és titik a-cé titik i-dé'; English: 'its dot ac dot id'."""
+    """'its.ac.id' -> 'i-té-és dot a-cé dot i-dé'; English: 'its dot ac dot id'.
+    People say "dot" for web addresses in Indonesian too; short labels are spelled in the sentence's letters."""
     parts = domain.lower().split(".")
     if lang == "en":
         return " dot ".join(parts)
     said = [p if p in TLD_WORDS or len(p) > 3 or not p.isalpha() else "-".join(ID_LETTERS[c.upper()] for c in p)
             for p in parts]
-    return " titik ".join(said)
+    return " dot ".join(said)
 
 
 def _email(m: re.Match, lang: str) -> str:
-    user = m.group(1).replace(".", " dot " if lang == "en" else " titik ")
+    user = m.group(1).replace(".", " dot ")
     return f"{user} {'at' if lang == 'en' else 'et'} {say_domain(m.group(2), lang)}"
 
 
@@ -92,11 +97,11 @@ def _fraction(m: re.Match, lang: str) -> str:
 
 
 def _digit_letter(m: re.Match, lang: str) -> str:
-    """'5G' -> 'lima ji', '4K' -> 'empat ka', '3D' -> 'tiga dé'."""
+    """'5G' -> 'five G', '4K' -> 'four K': tech names, said in English like API or GPU, in both languages."""
     n, letter = int(m.group(1)), m.group(2)
-    if lang == "en":
-        return f"{w(n, lang)} {letter}"
-    return f"{w(n, lang)} {'ji' if letter == 'G' else ID_LETTERS[letter]}"
+    if lang != "en" and EN_ACRONYM_STYLE == "spell":
+        letter = EN_LETTERS[letter]
+    return f"{w(n, 'en')} {letter}"
 
 
 ROMAN = re.compile(r"^M{0,3}(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})$")
@@ -116,6 +121,22 @@ def roman(s: str) -> int | None:
 ROMAN_ID_COUNT = r"Bab|Pasal|Jilid|Tahap|Sesi|Gelombang|Angkatan|Kelas|Semester|Lantai|[Aa]bad|Bagian|Seri|Golongan|Pelita|Kodam"
 ROMAN_ID_ORDER = r"Perang Dunia|Hamengkubuwono|Hamengku Buwono|Pakubuwono|Paku Buwono|Pakualam|Paku Alam|Mangkunegara|Paus [A-Z][a-z]+"
 ROMAN_EN = r"World War|Chapter|Part|Section|Phase|Grade|Level|Season|Volume|Book|Act|Article|Class|Stage"
+
+
+# A Roman numeral of two or more letters right after a capitalised name: "Elizabeth II", "Paus Yohanes
+# Paulus II". Single letters (C, D, L, M, V, X, I) only count after a context word above: "Gedung C",
+# "ukuran L" and "tipe X" are letters.
+ROMAN_AFTER_NAME = re.compile(r"\b([A-Z][a-z]+)\s+((?:X{0,3})(?:IX|IV|V?I{0,3}))\b(?![\w-])")
+
+
+def _roman_after_name(m: re.Match, lang: str) -> str:
+    numeral = m.group(2)
+    n = roman(numeral) if len(numeral) >= 2 else None
+    if n is None:
+        return m.group(0)
+    if lang == "en":
+        return f"{m.group(1)} the {num2words(n, lang='en', to='ordinal')}"
+    return f"{m.group(1)} ke{w(n, lang)}"
 
 
 def _roman(m: re.Match, lang: str, order: bool) -> str:
@@ -158,9 +179,12 @@ def early(lang: str) -> list:
         (re.compile(rf"\b({ROMAN_EN})\s+([IVXLCDM]{{1,7}})\b"), lambda m: _roman(m, "en", False)) if en else
         (re.compile(rf"\b({ROMAN_ID_ORDER})\s+([IVXLCDM]{{1,7}})\b"), lambda m: _roman(m, lang, True)),
     ]
+    if en:
+        rules.append((ROMAN_AFTER_NAME, lambda m: _roman_after_name(m, "en")))
     if not en:
         rules += [
             (re.compile(rf"\b({ROMAN_ID_COUNT})\s+([IVXLCDM]{{1,7}})\b"), lambda m: _roman(m, lang, False)),
+            (ROMAN_AFTER_NAME, lambda m: _roman_after_name(m, lang)),
             # "1990-an" -> "seribu sembilan ratus sembilan puluhan"
             (re.compile(r"\b(\d+)-an\b"), lambda m: w(int(m.group(1)), lang) + "an"),
             # "S1", "S2", "D3": degree levels

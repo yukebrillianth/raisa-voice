@@ -215,8 +215,15 @@ def is_year(s: str) -> bool:
     return bool(re.fullmatch(r"1[1-9]\d\d|20\d\d", s))
 
 
+# A score, not a range: "menang 3-1", "skor akhir 2-2", "won 3-1".
+SCORE_WORDS = re.compile(r"\b(skor|skornya|menang|kalah|unggul|tertinggal|imbang|hasil akhir|score|won|lost|beat|beats|"
+                         r"leads?|drew|draw)\b[^.!?]{0,25}$", re.I)
+
+
 def say_range(m: re.Match, lang: str) -> str:
     a, b = m.group(1), m.group(2)
+    if SCORE_WORDS.search(m.string[:m.start()]) and len(a) <= 2 and len(b) <= 2:
+        return f"{a} to {b}" if lang == "en" else f"{a} lawan {b}"
     if lang == "en":
         if is_year(a) and is_year(b):
             return f"{year_en(int(a))} to {year_en(int(b))}"

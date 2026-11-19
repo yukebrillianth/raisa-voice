@@ -130,7 +130,8 @@ The user's pronunciation rules (authoritative):
 | 2019-2024, 08.00-10.00, 5-10 | "... sampai ..." ("to" in English, years as "twenty nineteen") |
 | RTX 5090, ISO 9001, ESP32 | "RTX lima puluh sembilan puluh", digits one by one, "ESP tiga puluh dua" |
 | any acronym in an English sentence ("send a PDF file") | raw, never Indonesian letters |
-| its.ac.id, humas@its.ac.id, Jl. Raya No. 5, S1, 5G, 1990-an, Bab IV, Perang Dunia II, 1/2, 24/7 | "i-té-és titik a-cé titik i-dé", "humas et ...", "Jalan Raya nomor lima", "és satu", "lima ji", "...sembilan puluhan", "Bab empat", "Perang Dunia kedua", "setengah", "dua puluh empat jam setiap hari" |
+| its.ac.id, humas@its.ac.id, Jl. Raya No. 5, S1, 5G, 4K, 1990-an, Bab IV, Perang Dunia II, Elizabeth II, 1/2, 24/7 | "i-té-és dot a-cé dot i-dé", "humas et ...", "Jalan Raya nomor lima", "és satu", "five G", "four K", "...sembilan puluhan", "Bab empat", "Perang Dunia kedua", "Elizabeth kedua", "setengah", "dua puluh empat jam setiap hari" |
+| menang 3-1, skor 2-2 | "tiga lawan satu" ("three to one"); without a score word it is a range |
 | 2.5 GHz in an Indonesian sentence, 3x, $20, ± & ~ / | "dua koma lima", "tiga kali", "dua puluh dolar", "kurang lebih", "dan", "sekitar", "atau" |
 | Mbps, psi, dB, USB-C | "em be pe es", "pe es i", "di bi", "yu es bi si" |
 

@@ -177,14 +177,14 @@ def test_unknown_capitals_use_the_model_and_known_ones_the_table():
 
 # Everyday things an LLM writes (everyday.py), found on 2026-11-19.
 EVERYDAY = [
-    ("Kunjungi https://www.its.ac.id/pendaftaran untuk info.", "Kunjungi i-té-és titik a-cé titik i-dé untuk info."),
-    ("Kirim email ke humas@its.ac.id ya.", "Kirim email ke humas et i-té-és titik a-cé titik i-dé ya."),
+    ("Kunjungi https://www.its.ac.id/pendaftaran untuk info.", "Kunjungi i-té-és dot a-cé dot i-dé untuk info."),
+    ("Kirim email ke humas@its.ac.id ya.", "Kirim email ke humas et i-té-és dot a-cé dot i-dé ya."),
     ("Prosesornya 2.5 GHz, versi 3.1.4.", "Prosesornya dua koma lima gigahertz, versi tiga titik satu titik empat."),
     ("Minum obatnya 3x sehari, layarnya 1920x1080.",
      "Minum obatnya tiga kali sehari, layarnya seribu sembilan ratus dua puluh kali seribu delapan puluh."),
     ("Lokasinya di Jl. Raya ITS No. 5, Kec. Sukolilo.", "Lokasinya di Jalan Raya i-té-és nomor lima, Kecamatan Sukolilo."),
     ("Tersedia jenjang S1, S2, dan D3.", "Tersedia jenjang és satu, és dua, dan dé tiga."),
-    ("Sudah mendukung 5G dan resolusi 4K.", "Sudah mendukung lima ji dan resolusi empat ka."),
+    ("Sudah mendukung 5G dan resolusi 4K.", "Sudah mendukung five G dan resolusi four K."),   # English, like GPU
     ("Harganya $20 atau Rp 2.5 juta.", "Harganya dua puluh dolar atau dua koma lima juta rupiah."),
     ("Musik tahun 1990-an ya.", "Musik tahun seribu sembilan ratus sembilan puluhan ya."),
     ("Baca Bab IV tentang abad XXI dan Perang Dunia II.",
@@ -203,6 +203,17 @@ EVERYDAY = [
     ("Visit https://its.ac.id, it costs $1.5 million.", "Visit its dot ac dot id, it costs one point five million dollars."),
     ("World War II ended in 1945, see Chapter IV.", "World War two ended in nineteen forty-five, see Chapter four."),
     ("Latency is 20 ms.", "Latency is twenty milliseconds."),
+    ("It supports 5G and 4K.", "It supports five G and four K."),
+    # Roman numerals after a name; single letters only after a context word
+    ("Ratu Elizabeth II dan Paus Yohanes Paulus II datang.", "Ratu Elizabeth kedua dan Paus Yohanes Paulus kedua datang."),
+    ("Queen Elizabeth II visited.", "Queen Elizabeth the second visited."),
+    ("Kelas XI dan Kelas X belajar.", "Kelas sebelas dan Kelas sepuluh belajar."),
+    ("Gedung C dan ukuran L, tipe X ya.", "Gedung C dan ukuran L, tipe X ya."),
+    # scores are not ranges
+    ("Persebaya menang 3-1 kemarin.", "Persebaya menang tiga lawan satu kemarin."),
+    ("Skor akhir 2-2 ya.", "Skor akhir dua lawan dua ya."),
+    ("They won 3-1.", "They won three to one."),
+    ("Jam buka 8-10 ya.", "Jam buka delapan sampai sepuluh ya."),
 ]
 
 
